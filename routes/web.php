@@ -43,7 +43,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/financial-data', [DashboardController::class, 'getFinancialData'])->name('dashboard.financial');
         
-        // ✅ เพิ่มกลับมา: หน้าเมนูรวม (แก้ Error Route Not Found)
+        // หน้าเมนูรวม
         Route::get('/menus', function () {
             return view('admin.menus');
         })->name('all-menus');
@@ -62,7 +62,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{id}/edit', [JobController::class, 'edit'])->name('edit');
             Route::put('/{id}', [JobController::class, 'update'])->name('update');
             
-            // Actions
+            // ✅ เพิ่ม Route ที่หายไปตรงนี้ครับ
+            Route::get('/{id}/review', [JobController::class, 'review'])->name('review');   // หน้าตรวจสอบ
+            Route::post('/{id}/approve', [JobController::class, 'approve'])->name('approve'); // ปุ่มยืนยัน
+
+            // Actions อื่นๆ
             Route::get('/api/get-bookings', [JobController::class, 'getBookingsByDate'])->name('get_bookings');
             Route::post('/{id}/update-driver', [JobController::class, 'updateDriver'])->name('update_driver');
             Route::post('/{id}/cancel', [JobController::class, 'cancel'])->name('cancel');

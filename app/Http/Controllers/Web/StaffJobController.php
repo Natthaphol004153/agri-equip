@@ -9,14 +9,15 @@ use App\Models\Equipment;
 use App\Models\MaintenanceLog;
 use App\Services\LineMessagingApi;
 use App\Services\PromptPayService;
+use App\Services\EasySlipSDK; // ✅ เรียกใช้ EasySlip
+use Illuminate\Support\Facades\Log; // ✅ เรียกใช้ Log
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class StaffJobController extends Controller
 {
-    /**
-     * 🟢 1. หน้าแสดงรายการงานทั้งหมด (My Jobs)
-     */
+    // ... (ฟังก์ชัน index, show, startWork เหมือนเดิม) ...
+    
     public function index()
     {
         $myJobs = Booking::with(['customer', 'equipment'])
@@ -51,13 +52,10 @@ class StaffJobController extends Controller
         return view('staff.jobs.index', compact('myJobs', 'historyJobs', 'equipments', 'qrCodes'));
     }
 
-    /**
-     * 🟢 2. หน้ารายละเอียดงาน (Job Detail)
-     */
     public function show($id)
     {
         $job = Booking::with(['customer', 'equipment'])->findOrFail($id);
-        
+
         if ($job->assigned_staff_id != Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
@@ -73,9 +71,6 @@ class StaffJobController extends Controller
         return view('staff.jobs.show', compact('job', 'qrData', 'balance'));
     }
 
-    /**
-     * 🟢 3. เริ่มงาน (AJAX)
-     */
     public function startWork(Request $request, $id)
     {
         $job = Booking::with('equipment')
@@ -105,11 +100,13 @@ class StaffJobController extends Controller
         return back()->with('success', 'เริ่มงานแล้ว! สู้ๆ ครับ ✌️');
     }
 
-    /**
-     * 🟢 4. จบงาน (AJAX)
-     */
+    // --------------------------------------------------------
+    // 🔥 แก้ไขฟังก์ชัน finishWork ให้ Log ปลอดภัย
+    // --------------------------------------------------------
     public function finishWork(Request $request, $id)
     {
+        Log::info("Job Finish Started: Job ID {$id}");
+
         $job = Booking::with('equipment')
             ->where('id', $id)
             ->where('assigned_staff_id', Auth::id())
@@ -123,6 +120,38 @@ class StaffJobController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        if ($balance > 0 && $request->hasFile('payment_proof')) {
+            
+            Log::info("Job Finish: Checking Slip with EasySlip...");
+
+            $sdk = new EasySlipSDK();
+            $imageFile = $request->file('payment_proof');
+            $result = $sdk->verify($imageFile);
+
+            // ✅ Log แบบนี้ปลอดภัย (ใส่ Array เป็น argument ที่ 2)
+            Log::info("Job Finish: EasySlip Result", $result); 
+
+            if (!$result['success']) {
+                $msg = '❌ ' . ($result['message'] ?? 'Unknown Error');
+                if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg]);
+                return back()->with('error', $msg);
+            }
+
+            $slipAmount = $result['data']['amount'];
+            
+            // เช็คยอดเงิน
+            if ($slipAmount < $balance) {
+                $msg = "❌ ยอดเงินไม่ครบ! (โอนมา {$slipAmount} บ. / ต้องจ่าย {$balance} บ.)";
+                Log::warning("Job Finish Failed: Insufficient amount.", ['slip' => $slipAmount, 'required' => $balance]);
+                
+                if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg]);
+                return back()->with('error', $msg);
+            }
+            
+            Log::info("Job Finish: Slip Passed. Amount: {$slipAmount}");
+        }
+
+        // บันทึกรูป
         $paymentProofPath = null;
         if ($request->hasFile('payment_proof')) {
             $paymentProofPath = $request->file('payment_proof')->store('payments', 'public');
@@ -145,7 +174,7 @@ class StaffJobController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'ส่งงานเรียบร้อย! ขอบคุณครับ 🙏',
+                'message' => '✅ ตรวจสอบสลิปผ่านแล้ว! บันทึกงานเรียบร้อย',
                 'job_id' => $job->id,
                 'new_status' => 'completed'
             ]);
@@ -154,43 +183,35 @@ class StaffJobController extends Controller
         return back()->with('success', "บันทึกงานเรียบร้อย!");
     }
 
-    /**
-     * 🟢 5. Dashboard พนักงาน
-     */
+    // ... (ส่วน reportGeneral, dashboard, อื่นๆ เหมือนเดิม) ...
     public function dashboard()
     {
         $userId = Auth::id();
-
         $counts = [
             'in_progress' => Booking::where('assigned_staff_id', $userId)->where('status', 'in_progress')->count(),
-            'scheduled'   => Booking::where('assigned_staff_id', $userId)->where('status', 'scheduled')->count(),
-            'completed'   => Booking::where('assigned_staff_id', $userId)
-                                    ->whereIn('status', ['completed', 'completed_pending_approval'])
-                                    ->whereMonth('actual_end', Carbon::now()->month)
-                                    ->whereYear('actual_end', Carbon::now()->year)
-                                    ->count(),
+            'scheduled' => Booking::where('assigned_staff_id', $userId)->where('status', 'scheduled')->count(),
+            'completed' => Booking::where('assigned_staff_id', $userId)
+                ->whereIn('status', ['completed', 'completed_pending_approval'])
+                ->whereMonth('actual_end', Carbon::now()->month)
+                ->whereYear('actual_end', Carbon::now()->year)
+                ->count(),
         ];
-
         $urgentJobs = Booking::with(['customer', 'equipment'])
             ->where('assigned_staff_id', $userId)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('status', 'in_progress')
-                  ->orWhere(function($sub) {
-                      $sub->where('status', 'scheduled')
-                          ->whereDate('scheduled_start', Carbon::today());
-                  });
+                    ->orWhere(function ($sub) {
+                        $sub->where('status', 'scheduled')
+                            ->whereDate('scheduled_start', Carbon::today());
+                    });
             })
-            ->orderByRaw("FIELD(status, 'in_progress', 'scheduled')") 
+            ->orderByRaw("FIELD(status, 'in_progress', 'scheduled')")
             ->orderBy('scheduled_start', 'asc')
             ->limit(10)
             ->get();
-
         return view('staff.dashboard', compact('counts', 'urgentJobs'));
     }
 
-    /**
-     * 🟢 6. แจ้งซ่อมทั่วไป (จากหน้าแรก Staff หรือปุ่มด่วน)
-     */
     public function reportGeneral(Request $request)
     {
         $request->validate([
@@ -198,62 +219,46 @@ class StaffJobController extends Controller
             'description' => 'required|string',
             'image' => 'nullable|image|max:10240'
         ]);
-
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('maintenance_reports', 'public');
         }
-
-        // 1. สร้าง Log แจ้งซ่อม
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
             'reported_by' => Auth::id(),
             'description' => $request->description,
             'image_path' => $imagePath,
             'maintenance_date' => now(),
-            'status' => 'pending', // รอแอดมินรับเรื่อง
+            'status' => 'pending',
             'cost' => 0
         ]);
-
-        // 2. อัปเดตสถานะรถเป็น 'maintenance' (ซ่อม) ทันที
-        Equipment::where('id', $request->equipment_id)->update([
-            'current_status' => 'maintenance'
-        ]);
-
+        Equipment::where('id', $request->equipment_id)->update(['current_status' => 'maintenance']);
         return back()->with('success', 'แจ้งซ่อมเรียบร้อย! รถถูกเปลี่ยนสถานะเป็น "กำลังซ่อม"');
     }
 
-    /**
-     * 🟢 7. หน้าประวัติการแจ้งซ่อมของฉัน
-     */
-    public function maintenanceIndex() {
+    public function maintenanceIndex()
+    {
         $myMaintenanceLogs = MaintenanceLog::with('equipment')
             ->where('reported_by', Auth::id())
             ->latest()
             ->limit(20)
             ->get();
-            
         return view('staff.maintenance.index', compact('myMaintenanceLogs'));
     }
 
-    /**
-     * 🟢 8. แสดงฟอร์มแจ้งซ่อม (ถ้ามีหน้าแยก)
-     */
-    public function createReport() {
+    public function createReport()
+    {
         $equipments = Equipment::all();
         return view('staff.maintenance.create', compact('equipments'));
     }
 
-    /**
-     * 🟢 9. บันทึกจากหน้าฟอร์มแจ้งซ่อมแยก (ถ้ามี)
-     */
-    public function storeReport(Request $request) { 
-        return $this->reportGeneral($request); // ใช้ Logic เดียวกับ reportGeneral
+    public function storeReport(Request $request)
+    {
+        return $this->reportGeneral($request);
     }
-    
-    // ไว้เผื่อแจ้งปัญหาเฉพาะงาน (ถ้ามีปุ่มแจ้งในหน้ารายละเอียดงาน)
-    public function reportIssue(Request $request, $jobId) { 
-        // Logic คล้าย reportGeneral แต่อาจจะผูกกับ Job ID ด้วย (ถ้า Table รองรับ)
+
+    public function reportIssue(Request $request, $jobId)
+    {
         return $this->reportGeneral($request);
     }
 }
