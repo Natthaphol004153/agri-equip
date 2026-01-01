@@ -32,8 +32,8 @@ class JobController extends Controller
 
         // 4. ค้นหา (ชื่อลูกค้า หรือ เลข Job)
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->whereHas('customer', function($sub) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('customer', function ($sub) use ($search) {
                     $sub->where('name', 'like', "%$search%");
                 })->orWhere('job_number', 'like', "%$search%");
             });
@@ -168,7 +168,7 @@ class JobController extends Controller
             $query->where('equipment_id', $equipmentId);
         }
 
-        $bookings = $query->get()->map(function($job) {
+        $bookings = $query->get()->map(function ($job) {
             return [
                 'job_number' => $job->job_number,
                 'time_start' => Carbon::parse($job->scheduled_start)->format('H:i'),
@@ -199,10 +199,35 @@ class JobController extends Controller
         $job->update(['status' => 'canceled']);
         return response()->json(['success' => true, 'message' => 'ยกเลิกงานเรียบร้อย']);
     }
-    
+
     // ฟังก์ชันอื่นๆ เช่น review, approve, receipt เพิ่มเติมได้ตามต้องการ
-    public function receipt($id) {
-         $job = Booking::findOrFail($id);
-         return view('admin.jobs.receipt', compact('job'));
+    public function receipt($id)
+    {
+        $job = Booking::findOrFail($id);
+        return view('admin.jobs.receipt', compact('job'));
+    }
+    /**
+     * 🟢 หน้าตรวจสอบงาน (Review)
+     */
+    public function review($id)
+    {
+        $job = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
+        return view('admin.jobs.review', compact('job'));
+    }
+
+    /**
+     * 🟢 อนุมัติงาน (Approve)
+     */
+    public function approve(Request $request, $id)
+    {
+        $job = Booking::findOrFail($id);
+
+        // อัปเดตสถานะเป็น "เสร็จสิ้นสมบูรณ์" (completed)
+        $job->update([
+            'status' => 'completed',
+            // อาจจะเพิ่ม logic ตัดสต็อกอะไหล่ หรือคำนวณเงินเดือนตรงนี้ได้ในอนาคต
+        ]);
+
+        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว!');
     }
 }

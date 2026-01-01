@@ -38,7 +38,7 @@ return new class extends Migration {
             ])->default('scheduled');
 
             $table->decimal('total_price', 12, 2)->default(0); // ราคาประเมิน
-            $table->enum('payment_status', ['pending', 'paid', 'partial'])->default('pending');
+            $table->enum('payment_status', ['pending', 'deposit_paid', 'paid', 'partial'])->default('pending');
 
             $table->timestamps();
             $table->softDeletes();
