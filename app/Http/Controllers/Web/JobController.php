@@ -17,8 +17,9 @@ class JobController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. รับค่า Filter
+        // 1. รับค่า Filter (เพิ่ม machine_type)
         $status = $request->get('status', 'all');
+        $machineType = $request->get('machine_type', 'all'); // <--- 🔥 เพิ่มบรรทัดนี้
         $search = $request->get('search');
 
         // 2. Query ข้อมูล
@@ -30,7 +31,14 @@ class JobController extends Controller
             $query->where('status', $status);
         }
 
-        // 4. ค้นหา (ชื่อลูกค้า หรือ เลข Job)
+        // 4. 🔥 กรองตามประเภทเครื่องจักร [เพิ่มใหม่]
+        if ($machineType !== 'all') {
+            $query->whereHas('equipment', function ($q) use ($machineType) {
+                $q->where('type', $machineType);
+            });
+        }
+
+        // 5. ค้นหา (ชื่อลูกค้า หรือ เลข Job)
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('customer', function ($sub) use ($search) {
@@ -39,10 +47,10 @@ class JobController extends Controller
             });
         }
 
-        // 5. Pagination
+        // 6. Pagination
         $jobs = $query->paginate(10)->withQueryString();
 
-        // 6. โหลดข้อมูล Staff ไว้สำหรับ Modal "มอบหมายงานด่วน"
+        // 7. โหลดข้อมูล Staff ไว้สำหรับ Modal "มอบหมายงานด่วน"
         $staffs = User::where('role', 'staff')->where('is_active', true)->get();
 
         // ถ้าเป็น AJAX Request (ตอนกด Tab หรือ Search) ให้ส่งเฉพาะตารางกลับไป
