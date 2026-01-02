@@ -10,6 +10,8 @@ use App\Http\Controllers\Web\StaffJobController;
 use App\Http\Controllers\Web\FuelController;
 use App\Http\Controllers\Web\MaintenanceController;
 use App\Http\Controllers\Web\UserController;
+// ✅ เพิ่มบรรทัดนี้เพื่อเรียกใช้ StaffLoginController
+use App\Http\Controllers\Web\StaffLoginController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,10 +19,14 @@ use App\Http\Controllers\Web\UserController;
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
-    // ล็อกอินหน้าเดียวจบ (Single Login)
+    // ล็อกอินหน้าเดียวจบ (Single Login) - สำหรับ Admin
     Route::get('/', [AuthController::class, 'loginForm'])->name('login'); 
     Route::get('/login', [AuthController::class, 'loginForm']); 
     Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+
+    // 🟢 Staff PIN Login (ล็อกอินพนักงาน)
+    Route::get('/staff/login', [StaffLoginController::class, 'showLoginForm'])->name('staff.login');
+    Route::post('/staff/login', [StaffLoginController::class, 'login'])->name('staff.login.submit');
 });
 
 /*
@@ -62,9 +68,9 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{id}/edit', [JobController::class, 'edit'])->name('edit');
             Route::put('/{id}', [JobController::class, 'update'])->name('update');
             
-            // ✅ เพิ่ม Route ที่หายไปตรงนี้ครับ
-            Route::get('/{id}/review', [JobController::class, 'review'])->name('review');   // หน้าตรวจสอบ
-            Route::post('/{id}/approve', [JobController::class, 'approve'])->name('approve'); // ปุ่มยืนยัน
+            // Route สำหรับ Review/Approve
+            Route::get('/{id}/review', [JobController::class, 'review'])->name('review');   
+            Route::post('/{id}/approve', [JobController::class, 'approve'])->name('approve');
 
             // Actions อื่นๆ
             Route::get('/api/get-bookings', [JobController::class, 'getBookingsByDate'])->name('get_bookings');
@@ -108,7 +114,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{id}/finish', [StaffJobController::class, 'finishWork'])->name('finish');
             Route::post('/{id}/report-issue', [StaffJobController::class, 'reportIssue'])->name('report_issue');
         });
-
+        
         Route::prefix('maintenance')->name('maintenance.')->group(function () {
             Route::get('/', [StaffJobController::class, 'maintenanceIndex'])->name('index');
             Route::get('/create', [StaffJobController::class, 'createReport'])->name('create');

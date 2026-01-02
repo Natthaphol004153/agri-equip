@@ -71,7 +71,12 @@
             <i class="fa-solid fa-arrow-right"></i>
         </button>
     </form>
-
+    <div class="mt-4 text-center">
+    <span class="text-gray-500 text-sm">หรือ</span>
+    <a href="{{ route('staff.login') }}" class="text-green-600 hover:text-green-800 font-bold text-sm ml-1">
+        <i class="fa-solid fa-id-card-clip"></i> เข้าสู่ระบบพนักงาน (PIN)
+    </a>
+</div>
     <div class="mt-8 text-center text-xs text-gray-400">
         &copy; {{ date('Y') }} Agri-Equip Management System
     </div>
