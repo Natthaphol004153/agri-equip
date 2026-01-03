@@ -16,7 +16,7 @@ use Carbon\Carbon;
 
 class StaffJobController extends Controller
 {
-    // ... (ฟังก์ชัน index, show, startWork ปล่อยไว้เหมือนเดิม ไม่ต้องแก้) ...
+    // ... (ฟังก์ชัน index, show, startWork เดิม) ...
     public function index()
     {
         $myJobs = Booking::with(['customer', 'equipment'])
@@ -100,7 +100,7 @@ class StaffJobController extends Controller
     }
 
     // --------------------------------------------------------
-    // 🔥 แก้ไขฟังก์ชัน finishWork: เพิ่มเช็คสลิปซ้ำ (Duplicate Check)
+    // 🔥 ฟังก์ชัน finishWork (ที่มี Duplicate Check)
     // --------------------------------------------------------
     public function finishWork(Request $request, $id)
     {
@@ -119,7 +119,7 @@ class StaffJobController extends Controller
             'note' => 'nullable|string',
         ]);
 
-        $transRef = null; // ตัวแปรเก็บเลข Ref
+        $transRef = null;
 
         if ($balance > 0 && $request->hasFile('payment_proof')) {
             
@@ -131,7 +131,6 @@ class StaffJobController extends Controller
 
             Log::info("Job Finish: EasySlip Result", $result); 
 
-            // 1. เช็คว่าสลิปปลอมหรือไม่ (API ตอบ Error ไหม)
             if (!$result['success']) {
                 $msg = '❌ สลิปไม่ผ่านการตรวจสอบ: ' . ($result['message'] ?? 'Unknown Error');
                 if ($request->ajax()) return response()->json(['success' => false, 'message' => $msg]);
@@ -140,10 +139,8 @@ class StaffJobController extends Controller
 
             $slipData = $result['data'];
             $slipAmount = $slipData['amount'];
-            $transRef = $slipData['ref'] ?? null; // ดึงเลข Ref ออกมา
+            $transRef = $slipData['ref'] ?? null;
 
-            // 2. 🔴 เช็คสลิปซ้ำ (Duplicate Check)
-            // ค้นหาใน DB ว่ามี Job ไหนที่ใช้เลข Ref นี้ไปแล้วหรือยัง (ยกเว้น Job ตัวเอง)
             if ($transRef) {
                 $isDuplicate = Booking::where('payment_trans_ref', $transRef)
                     ->where('id', '!=', $id)
@@ -158,7 +155,6 @@ class StaffJobController extends Controller
                 }
             }
 
-            // 3. เช็คยอดเงิน
             if ($slipAmount < $balance) {
                 $msg = "❌ ยอดเงินไม่ครบ! (โอนมา {$slipAmount} บ. / ต้องจ่าย {$balance} บ.)";
                 Log::warning("Job Finish Failed: Insufficient amount.", ['slip' => $slipAmount, 'required' => $balance]);
@@ -170,7 +166,6 @@ class StaffJobController extends Controller
             Log::info("Job Finish: Slip Passed. Amount: {$slipAmount}, Ref: {$transRef}");
         }
 
-        // บันทึกรูป
         $paymentProofPath = null;
         if ($request->hasFile('payment_proof')) {
             $paymentProofPath = $request->file('payment_proof')->store('payments', 'public');
@@ -181,14 +176,13 @@ class StaffJobController extends Controller
             $imagePath = $request->file('job_image')->store('job_evidence', 'public');
         }
 
-        // อัปเดตข้อมูลลง DB
         $job->update([
             'status' => 'completed_pending_approval',
             'actual_end' => Carbon::now(),
             'image_path' => $imagePath,
             'payment_proof' => $paymentProofPath,
             'payment_status' => $paymentProofPath ? 'paid' : $job->payment_status,
-            'payment_trans_ref' => $transRef, // ✅ บันทึกเลข Ref กันคนเอามาใช้ซ้ำ
+            'payment_trans_ref' => $transRef,
             'note' => $request->note,
         ]);
 
@@ -204,7 +198,20 @@ class StaffJobController extends Controller
         return back()->with('success', "บันทึกงานเรียบร้อย!");
     }
 
-    // ... (ส่วนอื่นๆ ด้านล่างปล่อยไว้เหมือนเดิม) ...
+    // --------------------------------------------------------
+    // ✅ เพิ่มฟังก์ชัน history ที่ขาดหายไป
+    // --------------------------------------------------------
+    public function history()
+    {
+        $historyJobs = Booking::with(['customer', 'equipment'])
+            ->where('assigned_staff_id', Auth::id())
+            ->whereIn('status', ['completed', 'completed_pending_approval'])
+            ->latest('actual_end')
+            ->paginate(15); // ใช้ paginate เพื่อแบ่งหน้า
+
+        return view('staff.jobs.history', compact('historyJobs'));
+    }
+
     public function dashboard()
     {
         $userId = Auth::id();
