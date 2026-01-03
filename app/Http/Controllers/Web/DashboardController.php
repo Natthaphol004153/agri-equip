@@ -9,33 +9,52 @@ use App\Models\Equipment;
 use App\Models\MaintenanceLog;
 use App\Models\User;
 use App\Models\FuelLog;
+use App\Models\FuelPurchase;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // 1. Financial
+        // ------------------------------------------------------------------
+        // 1. Financial Overview (การเงินภาพรวม)
+        // ------------------------------------------------------------------
         $totalIncome = Booking::where('status', 'completed')->sum('total_price');
-        $maintenanceCost = MaintenanceLog::sum('cost'); 
-        $fuelCost = FuelLog::sum('amount'); 
-        $totalExpense = $maintenanceCost + $fuelCost;
-        $netProfit = $totalIncome - $totalExpense;
 
-        // 2. Operations
+        $maintenanceCost = MaintenanceLog::sum('cost'); 
+        
+        $fuelPurchaseCost = FuelPurchase::sum('total_cost'); 
+        
+        $totalExpense = $maintenanceCost + $fuelPurchaseCost;
+        $netProfit = $totalIncome - $totalExpense;
+        
+        // คำนวณยอดซื้อน้ำมันเดือนนี้ (สำหรับแสดงแยก)
+        $fuelCostThisMonth = FuelPurchase::whereMonth('purchase_date', Carbon::now()->month)
+            ->whereYear('purchase_date', Carbon::now()->year)
+            ->sum('total_cost');
+
+        // ------------------------------------------------------------------
+        // 2. Operations (การดำเนินงาน)
+        // ------------------------------------------------------------------
         $completedJobs = Booking::where('status', 'completed')->count();
         $pendingJobs = Booking::where('status', 'completed_pending_approval')->count();
         $activeMachines = Booking::where('status', 'in_progress')->count();
         $availableStaff = User::where('role', 'staff')->count(); 
         $fuelRequests = FuelLog::whereDate('created_at', today())->count();
 
-        // 3. Alerts (Sort by Urgency)
+        // ------------------------------------------------------------------
+        // 3. Alerts (แจ้งเตือนด่วน)
+        // ------------------------------------------------------------------
         $recentJobs = Booking::with(['customer', 'assignedStaff'])->latest()->take(5)->get();
+        
+        // แจ้งเตือนซ่อมบำรุง (ใกล้ถึงชั่วโมงซ่อม)
         $maintenanceAlerts = Equipment::whereRaw('current_hours >= (maintenance_hour_threshold - 10)')
             ->orderByRaw('(maintenance_hour_threshold - current_hours) ASC')
             ->get();
 
-        // 4. Calendar Events
+        // ------------------------------------------------------------------
+        // 4. Calendar Events (ปฏิทินงาน)
+        // ------------------------------------------------------------------
         $calendarBookings = Booking::with(['customer', 'equipment', 'assignedStaff'])
             ->where('status', '!=', 'cancelled')
             ->get()
@@ -73,7 +92,8 @@ class DashboardController extends Controller
             });
 
         return view('admin.dashboard', compact(
-            'totalIncome', 'totalExpense', 'netProfit',
+            'totalIncome', 'totalExpense', 'netProfit', 'fuelPurchaseCost', 'fuelCostThisMonth',
+            'maintenanceCost', 
             'completedJobs', 'pendingJobs', 'activeMachines', 'availableStaff', 'fuelRequests',
             'recentJobs', 'maintenanceAlerts', 'calendarBookings'
         ));
@@ -91,20 +111,24 @@ class DashboardController extends Controller
             $current->addDay();
         }
 
+        // รายรับ (Income)
         $incomes = Booking::selectRaw('DATE(actual_end) as date, SUM(total_price) as total')
             ->where('status', 'completed')
             ->whereBetween('actual_end', [$start, $end])
             ->groupBy('date')->pluck('total', 'date');
 
-        $fuelCosts = FuelLog::selectRaw('DATE(created_at) as date, SUM(amount) as total')
-            ->whereBetween('created_at', [$start, $end])
+        // รายจ่ายค่าน้ำมัน (Fuel Cost - จากการซื้อเข้า)
+        $fuelCosts = FuelPurchase::selectRaw('DATE(purchase_date) as date, SUM(total_cost) as total')
+            ->whereBetween('purchase_date', [$start, $end])
             ->groupBy('date')->pluck('total', 'date');
 
+        // รายจ่ายค่าซ่อมบำรุง (Maintenance Cost)
         $maintCosts = MaintenanceLog::selectRaw('DATE(completion_date) as date, SUM(cost) as total')
             ->where('status', 'completed')
             ->whereBetween('completion_date', [$start, $end])
             ->groupBy('date')->pluck('total', 'date');
 
+        // ชั่วโมงทำงาน (Operational Hours)
         $hours = Booking::selectRaw('DATE(scheduled_start) as date, SUM(TIMESTAMPDIFF(HOUR, scheduled_start, scheduled_end)) as total')
             ->where('status', 'completed')
             ->whereBetween('scheduled_start', [$start, $end])
@@ -124,6 +148,7 @@ class DashboardController extends Controller
             $hr = $hours[$dateKey] ?? 0;
             
             $totalC = $fc + $mc;
+            
             $incomeData[] = $inc;
             $costData[] = $totalC;
             $hourData[] = $hr;
@@ -134,6 +159,16 @@ class DashboardController extends Controller
             $current->addDay();
         }
 
+        // ---------------------------------------------------------
+        // ✅ เพิ่ม: คำนวณยอดรวมเจาะจง ตามช่วงเวลาที่เลือก (Flex)
+        // ---------------------------------------------------------
+        $summaryMaintenance = MaintenanceLog::where('status', 'completed')
+            ->whereBetween('completion_date', [$start, $end])
+            ->sum('cost');
+
+        $summaryFuel = FuelPurchase::whereBetween('purchase_date', [$start, $end])
+            ->sum('total_cost');
+
         return response()->json([
             'labels' => $labels,
             'income' => $incomeData,
@@ -143,7 +178,10 @@ class DashboardController extends Controller
                 'total_income' => $sumIncome,
                 'total_cost' => $sumCost,
                 'net_profit' => $sumIncome - $sumCost,
-                'total_hours' => $sumHours
+                'total_hours' => $sumHours,
+                // 👇 ส่งค่าใหม่ไปด้วย
+                'total_maintenance' => $summaryMaintenance, 
+                'total_fuel' => $summaryFuel 
             ]
         ]);
     }

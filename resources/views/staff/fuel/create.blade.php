@@ -5,7 +5,6 @@
 
 @section('content')
 <div class="max-w-lg mx-auto pb-20" x-data="{ source: 'external' }"> 
-    {{-- ใช้ AlpineJS (x-data) เพื่อจัดการโชว์/ซ่อน Form --}}
     
     <div class="mb-4">
         <a href="{{ route('staff.jobs.index') }}" class="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm font-bold">
@@ -13,9 +12,38 @@
         </a>
     </div>
 
+    {{-- ✅ เพิ่มส่วนแจ้งเตือนความสำเร็จ (Success Alert) --}}
+    @if(session('success'))
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 flex items-center gap-2" role="alert">
+            <i class="fa-solid fa-circle-check"></i>
+            <span class="block sm:inline font-bold">{{ session('success') }}</span>
+        </div>
+    @endif
+
+    {{-- ส่วนแจ้งเตือนข้อผิดพลาด (Error Alert) --}}
     @if(session('error'))
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <span class="block sm:inline">{{ session('error') }}</span>
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 flex items-center gap-2" role="alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span class="block sm:inline font-bold">{{ session('error') }}</span>
+        </div>
+    @endif
+
+    {{-- แสดง Error จาก Validation (เช่น ลืมกรอกข้อมูล) --}}
+    @if ($errors->any())
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fa-solid fa-circle-xmark text-red-500"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-red-700 font-bold">เกิดข้อผิดพลาดในการกรอกข้อมูล:</p>
+                    <ul class="mt-1 list-disc list-inside text-sm text-red-600">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -63,7 +91,9 @@
                         <select name="equipment_id" required class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 appearance-none">
                             <option value="" disabled selected>-- เลือกรถที่เติม --</option>
                             @foreach($equipments as $eq)
-                                <option value="{{ $eq->id }}">{{ $eq->name }} ({{ $eq->equipment_code }})</option>
+                                <option value="{{ $eq->id }}" {{ old('equipment_id') == $eq->id ? 'selected' : '' }}>
+                                    {{ $eq->name }} ({{ $eq->equipment_code }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -74,11 +104,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">จำนวนเงิน (บาท) *</label>
-                            <input type="number" step="0.01" name="amount" placeholder="0.00" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
+                            <input type="number" step="0.01" name="amount" value="{{ old('amount') }}" placeholder="0.00" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-1">จำนวนลิตร</label>
-                            <input type="number" step="0.01" name="liters" placeholder="ระบุลิตร" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
+                            <input type="number" step="0.01" name="liters" value="{{ old('liters') }}" placeholder="ระบุลิตร" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
                         </div>
                     </div>
                     
@@ -95,7 +125,7 @@
                         <select name="fuel_tank_id" class="w-full px-4 py-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500">
                             <option value="" disabled selected>-- เลือกถังจ่าย --</option>
                             @foreach($tanks as $tank)
-                                <option value="{{ $tank->id }}">
+                                <option value="{{ $tank->id }}" {{ old('fuel_tank_id') == $tank->id ? 'selected' : '' }}>
                                     {{ $tank->name }} (เหลือ {{ $tank->current_balance }} ลิตร)
                                 </option>
                             @endforeach
@@ -103,19 +133,19 @@
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-blue-800 mb-1">จำนวนลิตรที่เติม *</label>
-                        <input type="number" step="0.01" name="liters" placeholder="ระบุจำนวนลิตร" class="w-full px-4 py-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500">
+                        <input type="number" step="0.01" name="liters" value="{{ old('liters') }}" placeholder="ระบุจำนวนลิตร" class="w-full px-4 py-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
                 {{-- Common Field --}}
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">เลขไมล์/ชั่วโมงทำงาน</label>
-                    <input type="number" step="0.1" name="mileage" placeholder="ระบุเลขชั่วโมงปัจจุบัน" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
+                    <input type="number" step="0.1" name="mileage" value="{{ old('mileage') }}" placeholder="ระบุเลขชั่วโมงปัจจุบัน" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">
                 </div>
 
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">หมายเหตุ</label>
-                    <textarea name="note" rows="2" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500"></textarea>
+                    <textarea name="note" rows="2" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500">{{ old('note') }}</textarea>
                 </div>
 
             </div>
@@ -128,6 +158,6 @@
         </div>
     </form>
 </div>
-{{-- Script สำหรับ AlpineJS (ถ้ายังไม่ได้ลง ให้ใส่ CDN นี้) --}}
+{{-- Script สำหรับ AlpineJS --}}
 <script src="//unpkg.com/alpinejs" defer></script>
 @endsection

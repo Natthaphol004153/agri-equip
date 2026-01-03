@@ -25,13 +25,13 @@
     {{-- Grid Container --}}
     <div class="space-y-8">
 
-        {{-- 1. งานหลัก (Operations) --}}
+        {{-- 1. งานปฏิบัติการ (Operations) --}}
         <div>
             <div class="flex items-center gap-3 mb-4 px-2">
                 <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
                     <i class="fa-solid fa-briefcase"></i>
                 </div>
-                <h3 class="font-bold text-gray-700 text-lg">การทำงานหลัก</h3>
+                <h3 class="font-bold text-gray-700 text-lg">งานปฏิบัติการ</h3>
             </div>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -70,32 +70,32 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">เครื่องจักร</h4>
                     <p class="text-xs text-gray-400 mt-1">ทะเบียนและสถานะรถ</p>
                 </a>
+            </div>
+        </div>
 
-                {{-- Reports --}}
-                <a href="{{ route('admin.reports.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-200 transition-all duration-300 relative overflow-hidden">
-                    <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
-                        <i class="fa-solid fa-chart-pie text-6xl text-purple-600"></i>
-                    </div>
-                    <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
-                        <i class="fa-solid fa-chart-pie"></i>
-                    </div>
-                    <h4 class="font-bold text-gray-800 group-hover:text-purple-600 transition-colors">รายงานสรุป</h4>
-                    <p class="text-xs text-gray-400 mt-1">สถิติและการเงิน</p>
-                </a>
-                
-                {{-- 🟢 [NEW] Fuel Stock --}}
+        {{-- 2. ระบบน้ำมัน (Fuel System) --}}
+        <div>
+            <div class="flex items-center gap-3 mb-4 px-2">
+                <div class="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-yellow-600">
+                    <i class="fa-solid fa-gas-pump"></i>
+                </div>
+                <h3 class="font-bold text-gray-700 text-lg">ระบบน้ำมัน</h3>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {{-- Fuel Stock --}}
                 <a href="{{ route('admin.fuel.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-yellow-300 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
-                        <i class="fa-solid fa-gas-pump text-6xl text-yellow-600"></i>
+                        <i class="fa-solid fa-layer-group text-6xl text-yellow-600"></i>
                     </div>
                     <div class="w-14 h-14 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
-                        <i class="fa-solid fa-gas-pump"></i>
+                        <i class="fa-solid fa-layer-group"></i>
                     </div>
                     <h4 class="font-bold text-gray-800 group-hover:text-yellow-600 transition-colors">คลังน้ำมัน</h4>
-                    <p class="text-xs text-gray-400 mt-1">เช็คสต็อก/ราคาเฉลี่ย</p>
+                    <p class="text-xs text-gray-400 mt-1">เช็คสต็อก/ถังน้ำมัน</p>
                 </a>
 
-                {{-- 🟢 [NEW] Fuel Purchase --}}
+                {{-- Fuel Purchase --}}
                 <a href="{{ route('admin.fuel.purchase') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-cyan-200 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
                         <i class="fa-solid fa-cart-plus text-6xl text-cyan-600"></i>
@@ -106,11 +106,10 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-cyan-600 transition-colors">ซื้อน้ำมันเข้า</h4>
                     <p class="text-xs text-gray-400 mt-1">บันทึกรับน้ำมัน (Stock In)</p>
                 </a>
-
             </div>
         </div>
 
-        {{-- 2. บุคลากร (People) --}}
+        {{-- 3. บุคลากร (People) --}}
         <div>
             <div class="flex items-center gap-3 mb-4 px-2">
                 <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
@@ -138,16 +137,27 @@
             </div>
         </div>
 
-        {{-- 3. ระบบ (System) --}}
+        {{-- 4. รายงานและระบบ (Reports & System) --}}
         <div>
             <div class="flex items-center gap-3 mb-4 px-2">
-                <div class="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-gray-600">
-                    <i class="fa-solid fa-sliders"></i>
+                <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
+                    <i class="fa-solid fa-chart-pie"></i>
                 </div>
-                <h3 class="font-bold text-gray-700 text-lg">ระบบทั่วไป</h3>
+                <h3 class="font-bold text-gray-700 text-lg">รายงานและระบบ</h3>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <a href="{{ route('admin.reports.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-200 transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                        <i class="fa-solid fa-file-invoice-dollar text-6xl text-purple-600"></i>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 group-hover:text-purple-600 transition-colors">รายงานสรุป</h4>
+                    <p class="text-xs text-gray-400 mt-1">สถิติและการเงิน</p>
+                </a>
+
                 <a href="{{ route('admin.profile') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all duration-300">
                     <div class="w-14 h-14 rounded-2xl bg-gray-50 text-gray-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
                         <i class="fa-solid fa-user-circle"></i>
@@ -156,7 +166,6 @@
                     <p class="text-xs text-gray-400 mt-1">ข้อมูลส่วนตัว</p>
                 </a>
                 
-                {{-- หมายเหตุ: หากยังไม่มี Route นี้ให้ลบออกหรือสร้าง Route เพิ่ม --}}
                 @if(Route::has('admin.settings.index'))
                 <a href="{{ route('admin.settings.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all duration-300">
                     <div class="w-14 h-14 rounded-2xl bg-gray-50 text-gray-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 group-hover:rotate-90 transition-transform duration-500">

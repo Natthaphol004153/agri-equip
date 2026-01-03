@@ -47,8 +47,19 @@
 </head>
 <body class="bg-agri-bg font-sans text-gray-800 antialiased h-screen overflow-hidden flex selection:bg-agri-accent selection:text-white">
 
-    {{-- DESKTOP SIDEBAR --}}
-    <aside class="hidden lg:flex flex-col w-72 bg-agri-primary text-white shadow-2xl z-50 shrink-0">
+    {{-- DESKTOP SIDEBAR (Alpine Data for Dropdowns) --}}
+    <aside x-data="{ 
+        openGroup: '{{ 
+            request()->routeIs('admin.jobs.*') || request()->routeIs('admin.maintenance.*') || request()->routeIs('admin.equipments.*') ? 'operations' : 
+            (request()->routeIs('admin.fuel.*') ? 'fuel' : 
+            (request()->routeIs('admin.customers.*') || request()->routeIs('admin.users.*') ? 'people' : 
+            (request()->routeIs('admin.reports.*') || request()->routeIs('admin.settings.*') ? 'system' : '')))
+        }}',
+        toggle(group) {
+            this.openGroup = this.openGroup === group ? null : group;
+        }
+    }" class="hidden lg:flex flex-col w-72 bg-agri-primary text-white shadow-2xl z-50 shrink-0">
+        
         {{-- Logo --}}
         <div class="flex items-center gap-3 px-6 h-20 shrink-0 bg-black/10">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-agri-accent to-green-600 flex items-center justify-center text-white shadow-lg">
@@ -61,43 +72,98 @@
         </div>
 
         {{-- Menu List --}}
-        <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 scrollbar-hide">
-            @php
-                $desktopMenus = [
-                    ['label' => 'ภาพรวมระบบ', 'route' => 'admin.dashboard', 'icon' => 'fa-chart-pie'],
-                    ['label' => 'งานบริการ', 'route' => 'admin.jobs.index', 'icon' => 'fa-clipboard-list'],
-                    ['label' => 'ข้อมูลลูกค้า', 'route' => 'admin.customers.index', 'icon' => 'fa-users'],
-                    ['label' => 'จัดการพนักงาน', 'route' => 'admin.users.index', 'icon' => 'fa-id-card-clip'],
-                    ['label' => 'เครื่องจักร', 'route' => 'admin.equipments.index', 'icon' => 'fa-tractor'],
-                    
-                    // --- ⛽ ส่วนที่เพิ่ม: ระบบน้ำมัน ---
-                    ['label' => 'คลังน้ำมัน', 'route' => 'admin.fuel.index', 'icon' => 'fa-gas-pump'],
-                    ['label' => 'ซื้อน้ำมันเข้า', 'route' => 'admin.fuel.purchase', 'icon' => 'fa-cart-plus'],
-                    // -------------------------------
-                    
-                    ['label' => 'การซ่อมบำรุง', 'route' => 'admin.maintenance.index', 'icon' => 'fa-screwdriver-wrench'],
-                    ['label' => 'รายงาน', 'route' => 'admin.reports.index', 'icon' => 'fa-file-invoice-dollar'],
-                ];
-            @endphp
+        <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2 scrollbar-hide">
             
-            @foreach($desktopMenus as $menu)
-                @if(Route::has($menu['route']))
-                    @php 
-                        $baseRoute = explode('.', $menu['route']); 
-                        $prefix = $baseRoute[0] . '.' . $baseRoute[1];
-                        $isActive = request()->routeIs($menu['route']) || request()->routeIs($prefix . '*');
-                    @endphp
-                    <a href="{{ route($menu['route']) }}" 
-                       class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
-                       {{ $isActive ? 'bg-white/10 text-white font-bold shadow-inner' : 'text-gray-300 hover:bg-white/5 hover:text-white' }}">
-                        
-                        @if($isActive) <div class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-agri-accent rounded-r-full"></div> @endif
-                        
-                        <i class="fa-solid {{ $menu['icon'] }} w-6 text-center transition-transform group-hover:scale-110 {{ $isActive ? 'text-agri-accent' : '' }}"></i>
-                        <span>{{ $menu['label'] }}</span>
+            {{-- Dashboard --}}
+            <a href="{{ route('admin.dashboard') }}" 
+               class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
+               {{ request()->routeIs('admin.dashboard') ? 'bg-white/10 text-white font-bold shadow-inner' : 'text-gray-300 hover:bg-white/5 hover:text-white' }}">
+                @if(request()->routeIs('admin.dashboard')) <div class="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-agri-accent rounded-r-full"></div> @endif
+                <i class="fa-solid fa-chart-pie w-6 text-center"></i>
+                <span>ภาพรวมระบบ</span>
+            </a>
+
+            {{-- GROUP: Operations (งานปฏิบัติการ) --}}
+            <div>
+                <button @click="toggle('operations')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-briefcase w-6 text-center text-blue-300"></i>
+                        <span class="font-medium">งานปฏิบัติการ</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300" :class="openGroup === 'operations' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openGroup === 'operations'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
+                    <a href="{{ route('admin.jobs.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.jobs.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        งานบริการ (Jobs)
                     </a>
-                @endif
-            @endforeach
+                    <a href="{{ route('admin.maintenance.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.maintenance.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        ซ่อมบำรุง (Maintenance)
+                    </a>
+                    <a href="{{ route('admin.equipments.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.equipments.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        เครื่องจักร (Equipments)
+                    </a>
+                </div>
+            </div>
+
+            {{-- GROUP: Fuel System (ระบบน้ำมัน) --}}
+            <div>
+                <button @click="toggle('fuel')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-gas-pump w-6 text-center text-yellow-300"></i>
+                        <span class="font-medium">ระบบน้ำมัน</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300" :class="openGroup === 'fuel' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openGroup === 'fuel'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
+                    <a href="{{ route('admin.fuel.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.fuel.index') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        คลังน้ำมัน (Stock)
+                    </a>
+                    <a href="{{ route('admin.fuel.purchase') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.fuel.purchase') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        ซื้อน้ำมันเข้า (Purchase)
+                    </a>
+                </div>
+            </div>
+
+            {{-- GROUP: People (บุคลากร) --}}
+            <div>
+                <button @click="toggle('people')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-users w-6 text-center text-green-300"></i>
+                        <span class="font-medium">บุคลากร</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300" :class="openGroup === 'people' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openGroup === 'people'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
+                    <a href="{{ route('admin.customers.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.customers.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        ข้อมูลลูกค้า (Customers)
+                    </a>
+                    <a href="{{ route('admin.users.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        พนักงาน (Staff)
+                    </a>
+                </div>
+            </div>
+
+            {{-- GROUP: System (ระบบ) --}}
+            <div>
+                <button @click="toggle('system')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-sliders w-6 text-center text-purple-300"></i>
+                        <span class="font-medium">รายงานและระบบ</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300" :class="openGroup === 'system' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openGroup === 'system'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
+                    <a href="{{ route('admin.reports.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.reports.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        รายงานสรุป (Reports)
+                    </a>
+                    @if(Route::has('admin.settings.index'))
+                    <a href="{{ route('admin.settings.index') }}" class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.settings.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
+                        ตั้งค่าระบบ (Settings)
+                    </a>
+                    @endif
+                </div>
+            </div>
+
         </nav>
         
         {{-- Logout --}}
@@ -154,7 +220,8 @@
                 $mobileMenus = [
                     ['label' => 'หน้าแรก', 'route' => 'admin.dashboard', 'icon' => 'fa-house'],
                     ['label' => 'งาน', 'route' => 'admin.jobs.index', 'icon' => 'fa-clipboard-list'],
-                    ['label' => 'รายงาน', 'route' => 'admin.reports.index', 'icon' => 'fa-chart-simple'],
+                    ['label' => 'น้ำมัน', 'route' => 'admin.fuel.index', 'icon' => 'fa-gas-pump'], 
+                    // แก้ไขคอมเมนต์ตรงนี้ให้เป็น PHP Comment
                     ['label' => 'เมนู', 'route' => 'admin.all-menus', 'icon' => 'fa-table-cells-large'], 
                     ['label' => 'ฉัน', 'route' => 'admin.profile', 'icon' => 'fa-user'],
                 ];
