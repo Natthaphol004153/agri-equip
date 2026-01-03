@@ -69,6 +69,12 @@
                     ['label' => 'ข้อมูลลูกค้า', 'route' => 'admin.customers.index', 'icon' => 'fa-users'],
                     ['label' => 'จัดการพนักงาน', 'route' => 'admin.users.index', 'icon' => 'fa-id-card-clip'],
                     ['label' => 'เครื่องจักร', 'route' => 'admin.equipments.index', 'icon' => 'fa-tractor'],
+                    
+                    // --- ⛽ ส่วนที่เพิ่ม: ระบบน้ำมัน ---
+                    ['label' => 'คลังน้ำมัน', 'route' => 'admin.fuel.index', 'icon' => 'fa-gas-pump'],
+                    ['label' => 'ซื้อน้ำมันเข้า', 'route' => 'admin.fuel.purchase', 'icon' => 'fa-cart-plus'],
+                    // -------------------------------
+                    
                     ['label' => 'การซ่อมบำรุง', 'route' => 'admin.maintenance.index', 'icon' => 'fa-screwdriver-wrench'],
                     ['label' => 'รายงาน', 'route' => 'admin.reports.index', 'icon' => 'fa-file-invoice-dollar'],
                 ];
@@ -78,7 +84,6 @@
                 @if(Route::has($menu['route']))
                     @php 
                         $baseRoute = explode('.', $menu['route']); 
-                        // ✅ Logic: เช็คทั้งแบบ Exact Match และ Wildcard
                         $prefix = $baseRoute[0] . '.' . $baseRoute[1];
                         $isActive = request()->routeIs($menu['route']) || request()->routeIs($prefix . '*');
                     @endphp
@@ -118,9 +123,8 @@
             </h1>
             
             <div class="flex items-center gap-4">
-                {{-- 🔴 จุดที่ 1: แก้ไอคอน Header Mobile --}}
                 <a href="{{ route('admin.all-menus') }}" class="lg:hidden w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-agri-primary hover:text-white transition">
-                    <i class="fa-solid fa-table-cells-large"></i> {{-- เปลี่ยนจาก fa-grid-2 --}}
+                    <i class="fa-solid fa-table-cells-large"></i>
                 </a>
 
                 <a href="{{ route('admin.profile') }}" class="flex items-center gap-3 hover:bg-gray-50 py-1 px-2 rounded-lg transition group">
@@ -151,7 +155,6 @@
                     ['label' => 'หน้าแรก', 'route' => 'admin.dashboard', 'icon' => 'fa-house'],
                     ['label' => 'งาน', 'route' => 'admin.jobs.index', 'icon' => 'fa-clipboard-list'],
                     ['label' => 'รายงาน', 'route' => 'admin.reports.index', 'icon' => 'fa-chart-simple'],
-                    // 🔴 จุดที่ 2: แก้ไอคอน Bottom Bar
                     ['label' => 'เมนู', 'route' => 'admin.all-menus', 'icon' => 'fa-table-cells-large'], 
                     ['label' => 'ฉัน', 'route' => 'admin.profile', 'icon' => 'fa-user'],
                 ];
@@ -179,7 +182,6 @@
         </div>
     </nav>
 
-    {{-- Hidden Logout Form --}}
     <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">@csrf</form>
 
     <script>

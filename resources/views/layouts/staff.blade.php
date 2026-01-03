@@ -47,7 +47,7 @@
 <body class="bg-agri-bg font-sans text-gray-800 antialiased h-screen flex overflow-hidden">
 
     {{-- ========================================== --}}
-    {{-- 🖥️ DESKTOP SIDEBAR (DARK THEME - MATCHING ADMIN) --}}
+    {{-- 🖥️ DESKTOP SIDEBAR --}}
     {{-- ========================================== --}}
     <aside class="hidden lg:flex w-72 bg-agri-primary text-white border-r border-white/5 flex-col shadow-xl z-50 shrink-0">
         {{-- Logo --}}
@@ -69,6 +69,11 @@
                 $menus = [
                     ['label' => 'หน้าแรก', 'route' => 'staff.dashboard', 'icon' => 'fa-home'],
                     ['label' => 'งานของฉัน', 'route' => 'staff.jobs.index', 'icon' => 'fa-clipboard-user'],
+                    
+                    // --- ⛽ ส่วนที่เพิ่ม: เมนูเติมน้ำมัน ---
+                    ['label' => 'เติมน้ำมัน', 'route' => 'staff.fuel.create', 'icon' => 'fa-gas-pump'],
+                    // ------------------------------------
+
                     ['label' => 'ประวัติงาน', 'route' => 'staff.jobs.history', 'icon' => 'fa-history'],
                     ['label' => 'แจ้งซ่อม/ปัญหา', 'route' => 'staff.maintenance.create', 'icon' => 'fa-triangle-exclamation'],
                 ];
@@ -109,7 +114,7 @@
     {{-- ========================================== --}}
     <div class="flex-1 flex flex-col w-full h-full relative bg-gray-50">
 
-        {{-- 🖥️ Desktop Header (Added for Consistency) --}}
+        {{-- 🖥️ Desktop Header --}}
         <header class="hidden lg:flex h-16 bg-white/90 backdrop-blur-md border-b border-gray-200 items-center justify-between px-8 sticky top-0 z-30 shadow-sm">
             <h1 class="text-xl font-bold text-agri-primary">@yield('header', 'Staff Dashboard')</h1>
             
@@ -168,11 +173,17 @@
         {{-- 📱 MOBILE BOTTOM NAVBAR --}}
         <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 pb-safe">
             <div class="bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] h-[80px] rounded-t-3xl px-6">
-                <div class="grid grid-cols-4 h-full items-center justify-between">
+                {{-- 🔴 เปลี่ยน grid-cols-4 เป็น grid-cols-5 เพื่อรองรับ 5 ปุ่ม --}}
+                <div class="grid grid-cols-5 h-full items-center justify-between gap-1">
                     @php
                         $mobileMenus = [
                             ['route' => 'staff.dashboard', 'icon' => 'fa-house', 'label' => 'หน้าแรก', 'color' => 'text-agri-primary'],
                             ['route' => 'staff.jobs.index', 'icon' => 'fa-clipboard-list', 'label' => 'งาน', 'color' => 'text-blue-500'],
+                            
+                            // --- ⛽ ส่วนที่เพิ่ม: ปุ่มเติมน้ำมัน (Mobile) ---
+                            ['route' => 'staff.fuel.create', 'icon' => 'fa-gas-pump', 'label' => 'เติมน้ำมัน', 'color' => 'text-purple-500'],
+                            // -------------------------------------------
+                            
                             ['route' => 'staff.maintenance.create', 'icon' => 'fa-screwdriver-wrench', 'label' => 'แจ้งซ่อม', 'color' => 'text-orange-500'],
                         ];
                     @endphp

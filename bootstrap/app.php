@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
         // ✅ 1. ลงทะเบียนชื่อ 'admin' ตรงนี้ (สำคัญมาก!)
         $middleware->alias([
-            'admin' => \App\Http\Middleware\IsAdmin::class,
+            'is_admin' => \App\Http\Middleware\IsAdmin::class,
         ]);
 
         // ✅ 2. ตั้งค่า Redirect (กันหน้า Login วนลูป)

@@ -35,6 +35,7 @@
             </div>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {{-- Jobs --}}
                 <a href="{{ route('admin.jobs.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
                         <i class="fa-solid fa-clipboard-list text-6xl text-blue-600"></i>
@@ -46,6 +47,7 @@
                     <p class="text-xs text-gray-400 mt-1">จัดการคิวงานและสถานะ</p>
                 </a>
 
+                {{-- Maintenance --}}
                 <a href="{{ route('admin.maintenance.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-orange-200 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
                         <i class="fa-solid fa-screwdriver-wrench text-6xl text-orange-500"></i>
@@ -57,6 +59,7 @@
                     <p class="text-xs text-gray-400 mt-1">ติดตามการซ่อมเครื่องจักร</p>
                 </a>
 
+                {{-- Equipments --}}
                 <a href="{{ route('admin.equipments.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-200 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
                         <i class="fa-solid fa-tractor text-6xl text-indigo-600"></i>
@@ -68,6 +71,7 @@
                     <p class="text-xs text-gray-400 mt-1">ทะเบียนและสถานะรถ</p>
                 </a>
 
+                {{-- Reports --}}
                 <a href="{{ route('admin.reports.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-purple-200 transition-all duration-300 relative overflow-hidden">
                     <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
                         <i class="fa-solid fa-chart-pie text-6xl text-purple-600"></i>
@@ -78,6 +82,31 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-purple-600 transition-colors">รายงานสรุป</h4>
                     <p class="text-xs text-gray-400 mt-1">สถิติและการเงิน</p>
                 </a>
+                
+                {{-- 🟢 [NEW] Fuel Stock --}}
+                <a href="{{ route('admin.fuel.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-yellow-300 transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                        <i class="fa-solid fa-gas-pump text-6xl text-yellow-600"></i>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-gas-pump"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 group-hover:text-yellow-600 transition-colors">คลังน้ำมัน</h4>
+                    <p class="text-xs text-gray-400 mt-1">เช็คสต็อก/ราคาเฉลี่ย</p>
+                </a>
+
+                {{-- 🟢 [NEW] Fuel Purchase --}}
+                <a href="{{ route('admin.fuel.purchase') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-cyan-200 transition-all duration-300 relative overflow-hidden">
+                    <div class="absolute right-0 top-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                        <i class="fa-solid fa-cart-plus text-6xl text-cyan-600"></i>
+                    </div>
+                    <div class="w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-cart-plus"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800 group-hover:text-cyan-600 transition-colors">ซื้อน้ำมันเข้า</h4>
+                    <p class="text-xs text-gray-400 mt-1">บันทึกรับน้ำมัน (Stock In)</p>
+                </a>
+
             </div>
         </div>
 
@@ -126,7 +155,9 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-gray-900 transition-colors">โปรไฟล์</h4>
                     <p class="text-xs text-gray-400 mt-1">ข้อมูลส่วนตัว</p>
                 </a>
-
+                
+                {{-- หมายเหตุ: หากยังไม่มี Route นี้ให้ลบออกหรือสร้าง Route เพิ่ม --}}
+                @if(Route::has('admin.settings.index'))
                 <a href="{{ route('admin.settings.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-gray-300 transition-all duration-300">
                     <div class="w-14 h-14 rounded-2xl bg-gray-50 text-gray-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 group-hover:rotate-90 transition-transform duration-500">
                         <i class="fa-solid fa-gear"></i>
@@ -134,6 +165,7 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-gray-900 transition-colors">ตั้งค่าระบบ</h4>
                     <p class="text-xs text-gray-400 mt-1">Configuration</p>
                 </a>
+                @endif
 
                 <button onclick="confirmLogout()" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-red-200 hover:bg-red-50 transition-all duration-300 text-left w-full">
                     <div class="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-3 group-hover:bg-white group-hover:scale-110 transition-transform">

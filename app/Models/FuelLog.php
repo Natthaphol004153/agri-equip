@@ -9,10 +9,11 @@ class FuelLog extends Model
 {
     use HasFactory;
 
-    // ✅ ต้องมีบรรทัดนี้ เพื่ออนุญาตให้บันทึกข้อมูลได้
     protected $fillable = [
         'equipment_id',
         'user_id',
+        'fuel_source', // เพิ่ม
+        'fuel_tank_id', // เพิ่ม
         'amount',
         'liters',
         'mileage',
@@ -21,15 +22,18 @@ class FuelLog extends Model
         'refill_date',
     ];
 
-    // ความสัมพันธ์กับตาราง Equipment (Optional: เอาไว้ดึงชื่อรถ)
     public function equipment()
     {
         return $this->belongsTo(Equipment::class);
     }
 
-    // ความสัมพันธ์กับ User (Optional: เอาไว้ดูว่าใครเติม)
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function tank()
+    {
+        return $this->belongsTo(FuelTank::class, 'fuel_tank_id');
     }
 }
