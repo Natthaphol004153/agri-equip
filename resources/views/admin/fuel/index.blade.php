@@ -1,108 +1,153 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
+{{-- ปรับ padding: p-4 สำหรับมือถือ, md:p-6 สำหรับจอใหญ่ --}}
+<div class="p-4 md:p-6">
     
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">⛽ จัดการสต็อกน้ำมัน (Fuel Inventory)</h2>
-        <div class="space-x-2">
+    {{-- Header: ปรับเป็น flex-col บนมือถือ (เรียงลงมา) และ flex-row (เรียงนอน) บนจอ md ขึ้นไป --}}
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-center md:text-left">
+            จัดการสต็อกน้ำมัน (Fuel Inventory)
+        </h2>
+        
+        {{-- ปุ่มกด: ปรับให้เต็มความกว้างบนมือถือ หรือจัดกึ่งกลาง --}}
+        <div class="flex flex-wrap justify-center gap-2 w-full md:w-auto">
+            {{-- ปุ่มกดเปิด Modal เพิ่มถัง --}}
             <button onclick="document.getElementById('addTankModal').classList.remove('hidden')" 
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow">
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow transition text-sm md:text-base flex-1 md:flex-none text-center whitespace-nowrap">
                 + เพิ่มถังน้ำมัน
             </button>
             
+            {{-- ปุ่มไปหน้าซื้อน้ำมัน --}}
             <a href="{{ route('admin.fuel.purchase') }}" 
-               class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow">
-                + ซื้อน้ำมันเข้า (Stock In)
+               class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 shadow transition text-sm md:text-base flex-1 md:flex-none text-center whitespace-nowrap">
+                + ซื้อน้ำมันเข้า
             </a>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    {{-- Flash Messages --}}
+    @if(session('success'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded shadow-sm flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-xl"></i>
+            <p class="font-bold text-sm md:text-base">{{ session('success') }}</p>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm flex items-center gap-3">
+            <i class="fa-solid fa-circle-exclamation text-xl"></i>
+            <p class="font-bold text-sm md:text-base">{{ session('error') }}</p>
+        </div>
+    @endif
+
+    {{-- Grid Cards: grid-cols-1 (มือถือ) -> md:grid-cols-3 (ไอแพด/คอม) --}}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         @foreach($tanks as $tank)
-        @php
-            $percent = ($tank->capacity > 0) ? ($tank->current_balance / $tank->capacity) * 100 : 0;
-            $color = $percent < 20 ? 'red' : ($percent < 50 ? 'yellow' : 'green');
-        @endphp
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-{{ $color }}-500 relative">
+        <div class="bg-white rounded-xl shadow p-5 md:p-6 border-l-4 border-blue-500 relative group hover:shadow-lg transition">
+            
+            {{-- ปุ่มลบถัง --}}
             <form action="{{ route('admin.fuel.tank.destroy', $tank->id) }}" method="POST" 
                   onsubmit="return confirm('ยืนยันที่จะลบถังนี้? ข้อมูลประวัติการเติมอาจหายไป')" 
-                  class="absolute top-2 right-2">
+                  class="absolute top-2 right-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 @csrf
                 @method('DELETE')
-                <button type="submit" class="text-gray-400 hover:text-red-500">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <button type="submit" class="text-gray-400 hover:text-red-500 p-1" title="ลบถังน้ำมัน">
+                    <i class="fa-solid fa-trash"></i>
                 </button>
             </form>
 
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-700">{{ $tank->name }}</h3>
-                    <p class="text-sm text-gray-500">ชนิด: {{ $tank->fuel_type }}</p>
-                </div>
-                <span class="text-2xl font-bold text-{{ $color }}-600">
-                    {{ number_format($tank->current_balance, 0) }} <span class="text-sm text-gray-500">/ {{ number_format($tank->capacity, 0) }} ลิตร</span>
+            <div class="flex justify-between items-start mb-2">
+                <h3 class="text-lg md:text-xl font-bold text-gray-800 break-words max-w-[70%]">{{ $tank->name }}</h3>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold whitespace-nowrap">
+                    {{ $tank->fuel_type ?? 'N/A' }}
                 </span>
             </div>
             
-            <div class="w-full bg-gray-200 rounded-full h-4 mt-4 dark:bg-gray-700">
-                <div class="bg-{{ $color }}-500 h-4 rounded-full transition-all duration-500" style="width: {{ $percent }}%"></div>
+            <div class="text-gray-500 text-xs md:text-sm mb-4 flex items-center gap-1">
+                <i class="fa-solid fa-database"></i> ความจุ: {{ number_format($tank->capacity) }} ลิตร
             </div>
-            <p class="text-xs text-right mt-1 text-gray-500">{{ number_format($percent, 1) }}%</p>
+            
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-2xl md:text-3xl font-bold text-blue-600">{{ number_format($tank->current_balance, 0) }}</span>
+                <span class="text-sm md:text-base text-gray-600">ลิตร (คงเหลือ)</span>
+            </div>
+            
+            {{-- Progress Bar --}}
+            @php 
+                $percent = ($tank->capacity > 0) ? ($tank->current_balance / $tank->capacity) * 100 : 0;
+                $barColor = $percent < 20 ? 'bg-red-500' : 'bg-blue-600';
+            @endphp
+            <div class="w-full bg-gray-200 rounded-full h-3 mb-1 overflow-hidden">
+                <div class="{{ $barColor }} h-3 rounded-full transition-all duration-1000" style="width: {{ $percent }}%"></div>
+            </div>
+            <div class="text-right text-xs text-gray-400 font-bold">{{ number_format($percent, 1) }}%</div>
+
+            <div class="pt-4 mt-4 border-t border-gray-100 text-sm text-gray-600 flex justify-between items-center bg-gray-50 -mx-5 -mb-5 px-5 py-3 md:-mx-6 md:-mb-6 md:px-6 rounded-b-xl">
+                <span>ต้นทุนเฉลี่ย:</span>
+                <span class="font-bold text-gray-800 bg-white px-2 py-1 rounded border border-gray-200 shadow-sm text-xs md:text-sm">
+                    {{ number_format($tank->average_price, 2) }} ฿/ลิตร
+                </span>
+            </div>
         </div>
         @endforeach
     </div>
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h3 class="text-lg font-semibold text-gray-700">📜 ประวัติการซื้อน้ำมันล่าสุด</h3>
+    {{-- ตารางประวัติการซื้อ --}}
+    @if(isset($purchases) && $purchases->count() > 0)
+    <div class="mt-8 md:mt-10 bg-white rounded-xl shadow overflow-hidden">
+        <div class="px-4 py-4 md:px-6 border-b border-gray-200 bg-gray-50">
+            <h3 class="font-bold text-gray-700">📜 ประวัติการซื้อน้ำมันล่าสุด</h3>
         </div>
-        <table class="min-w-full leading-normal">
-            <thead>
-                <tr>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">วันที่</th>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ถังน้ำมัน</th>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">ร้านค้า/ซัพพลายเออร์</th>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">จำนวน (ลิตร)</th>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">ราคา/ลิตร</th>
-                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">รวมเงิน</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($purchases as $purchase)
-                <tr>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                        {{ \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') }}
-                    </td>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm font-medium">
-                        {{ $purchase->tank->name ?? '-' }}
-                    </td>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm text-gray-500">
-                        {{ $purchase->supplier_name ?? '-' }}
-                    </td>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm text-right text-blue-600 font-bold">
-                        +{{ number_format($purchase->amount_liters, 0) }}
-                    </td>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm text-right">
-                        {{ number_format($purchase->price_per_liter, 2) }}
-                    </td>
-                    <td class="px-5 py-4 border-b border-gray-200 bg-white text-sm text-right font-bold text-gray-800">
-                        {{ number_format($purchase->total_cost, 2) }}
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="px-5 py-4 text-center text-gray-500">ไม่มีข้อมูลการซื้อเร็วๆ นี้</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+        
+        {{-- ✅ เพิ่ม overflow-x-auto เพื่อให้ตารางเลื่อนซ้ายขวาได้ในมือถือ --}}
+        <div class="overflow-x-auto">
+            <table class="min-w-full leading-normal text-sm text-left whitespace-nowrap">
+                <thead class="bg-gray-100 text-gray-600 uppercase font-bold text-xs">
+                    <tr>
+                        <th class="px-4 py-3 md:px-6">วันที่</th>
+                        <th class="px-4 py-3 md:px-6">ถังน้ำมัน</th>
+                        <th class="px-4 py-3 md:px-6">ร้านค้า</th>
+                        <th class="px-4 py-3 md:px-6 text-right">จำนวน (ลิตร)</th>
+                        <th class="px-4 py-3 md:px-6 text-right">ราคา/ลิตร</th>
+                        <th class="px-4 py-3 md:px-6 text-right">รวมเงิน</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach($purchases as $purchase)
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white">
+                            {{ \Carbon\Carbon::parse($purchase->purchase_date)->format('d/m/Y') }}
+                        </td>
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white font-medium">
+                            {{ $purchase->tank->name ?? '-' }}
+                        </td>
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white text-gray-500">
+                            {{ $purchase->supplier ?? '-' }}
+                        </td>
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white text-right text-blue-600 font-bold">
+                            +{{ number_format($purchase->liters, 0) }}
+                        </td>
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white text-right">
+                            {{ number_format($purchase->price_per_liter, 2) }}
+                        </td>
+                        <td class="px-4 py-3 md:px-6 border-b border-gray-200 bg-white text-right font-bold text-gray-800">
+                            {{ number_format($purchase->total_cost, 2) }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
     </div>
+    @endif
 
 </div>
 
-<div id="addTankModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 50;">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+{{-- Modal เพิ่มถังน้ำมัน --}}
+<div id="addTankModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 px-4">
+    {{-- ปรับ w-96 เป็น w-full max-w-md เพื่อให้ยืดหยุ่นในมือถือ --}}
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
         <div class="mt-3 text-center">
             <h3 class="text-lg leading-6 font-medium text-gray-900">เพิ่มถังน้ำมันใหม่</h3>
             <form action="{{ route('admin.fuel.tank.store') }}" method="POST" class="mt-4 text-left">
