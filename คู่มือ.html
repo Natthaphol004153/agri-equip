@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agri-Equip System - คู่มือฉบับสมบูรณ์</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #16a34a;
+            --primary-dark: #15803d;
+            --primary-light: #22c55e;
+            --accent: #f59e0b;
+            --bg-main: #fafaf9;
+            --bg-card: #ffffff;
+            --bg-code: #1e293b;
+            --text-main: #1c1917;
+            --text-secondary: #57534e;
+            --text-muted: #78716c;
+            --border: #e7e5e4;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --shadow-accent: 0 8px 24px rgba(245, 158, 11, 0.15);
+        }
+
+        body {
+            font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.03;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 35px, var(--primary) 35px, var(--primary) 36px),
+                repeating-linear-gradient(-45deg, transparent, transparent 35px, var(--primary) 35px, var(--primary) 36px);
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: white;
+            padding: 4rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 4px solid var(--accent);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-30px, -30px) rotate(180deg); }
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            position: relative;
+            text-shadow: 2px 4px 12px rgba(0, 0, 0, 0.2);
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        .header .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Navigation Breadcrumb */
+        .breadcrumb {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow-sm);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--primary-dark);
+        }
+
+        /* Feature Cards */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            padding: 3rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.3s;
+            transform-origin: left;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-light);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Main Content Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* Section Headers */
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 3px solid var(--primary);
+        }
+
+        .section-icon {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Quick Start Cards */
+        .quick-start-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .quick-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 2rem;
+            border: 2px solid var(--border);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .quick-card:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+            transform: scale(1.02);
+        }
+
+        .quick-card h3 {
+            color: var(--primary);
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .quick-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.7rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Code Blocks */
+        .code-block {
+            background: var(--bg-code);
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            position: relative;
+            overflow-x: auto;
+            box-shadow: var(--shadow-md);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .code-block::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: 0.5rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+
+        .code-block code {
+            color: #86efac;
+        }
+
+        .code-comment {
+            color: #94a3b8;
+        }
+
+        /* Info Boxes */
+        .info-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .info-box.success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-left-color: var(--primary);
+        }
+
+        .info-box.warning {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left-color: #ef4444;
+        }
+
+        .info-box h4 {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Table Styling */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+        }
+
+        thead {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: white;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr {
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f5f5f4;
+        }
+
+        /* Step Lists */
+        .step-list {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            counter-increment: step-counter;
+            margin-bottom: 2rem;
+            padding-left: 4rem;
+            position: relative;
+        }
+
+        .step-list li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 3rem;
+            height: 3rem;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.3rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .step-list li h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+        }
+
+        /* Accordion FAQ */
+        .faq-item {
+            background: var(--bg-card);
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+        }
+
+        .faq-question {
+            padding: 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .faq-question:hover {
+            background: #fafaf9;
+        }
+
+        .faq-answer {
+            padding: 0 1.5rem 1.5rem;
+            color: var(--text-secondary);
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .faq-item.active .faq-answer {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-code);
+            color: #cbd5e1;
+            padding: 3rem 2rem;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .footer h3 {
+            color: white;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .footer a {
+            color: #94a3b8;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .footer a:hover {
+            color: var(--primary-light);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #334155;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5rem;
+            }
+
+            .header .subtitle {
+                font-size: 1.1rem;
+            }
+
+            .section-title {
+                font-size: 1.8rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .step-list li {
+                padding-left: 3.5rem;
+            }
+
+            .step-list li::before {
+                width: 2.5rem;
+                height: 2.5rem;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Utility Classes */
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="icon">🚜</div>
+        <h1>Agri-Equip System</h1>
+        <p class="subtitle">ระบบจัดการรถเกษตรและงานซ่อมบำรุง</p>
+    </header>
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="#">กลับสู่หน้าหลัก</a> / <span>หน้าหลัก</span> / <span>เริ่มต้นใช้งาน</span>
+    </nav>
+
+    <!-- Features -->
+    <section class="features">
+        <div class="feature-card">
+            <div class="feature-icon">💳</div>
+            <h3 class="feature-title">Smart Payment</h3>
+            <p class="feature-desc">ตรวจสอบสลิปอัตโนมัติ</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔔</div>
+            <h3 class="feature-title">Notifications</h3>
+            <p class="feature-desc">แจ้งเตือนผ่าน Line</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⛽</div>
+            <h3 class="feature-title">Fuel Stock</h3>
+            <p class="feature-desc">ระบบคลังน้ำมัน</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Quick Start Section -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">⚡</span>
+                <h2 class="section-title">เริ่มต้นใช้งานด่วน</h2>
+            </div>
+
+            <div class="info-box success">
+                <h4>📌 สำหรับผู้ที่ต้องการทดสอบระบบ</h4>
+                <p>ติดตั้งเพื่อทดสอบระบบบนเครื่องส่วนตัวด้วยคำสั่งอัตโนมัติ</p>
+            </div>
+
+            <div class="code-block" data-lang="bash">
+<code>git clone https://github.com/natthaphol2019/agri-equip.git
+cd agri-equip
+composer run setup</code>
+            </div>
+
+            <p class="mt-2">คำสั่งนี้จะทำการติดตั้ง Library, สร้าง .env, สร้าง Key, และสร้างฐานข้อมูลจำลองให้ทันที</p>
+
+            <div class="info-box mt-3">
+                <h4>🔑 บัญชีทดสอบ (Seeder)</h4>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Email/Username</th>
+                                <th>Password</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Admin</strong></td>
+                                <td>admin@agri-equip.com</td>
+                                <td>password</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Staff</strong></td>
+                                <td>เบอร์โทรศัพท์</td>
+                                <td>123456</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Manual Installation -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">🔧</span>
+                <h2 class="section-title">การติดตั้งแบบละเอียด (Manual)</h2>
+            </div>
+
+            <p class="mb-3">ขั้นตอนการติดตั้งสำหรับ Production หรือเมื่อติดตั้งอัตโนมัติไม่สำเร็จ</p>
+
+            <ol class="step-list">
+                <li>
+                    <h3>เตรียม Environment</h3>
+                    <p>ต้องติดตั้งซอฟต์แวร์ต่อไปนี้ก่อน:</p>
+                    <ul>
+                        <li>PHP >= 8.2 (พร้อม Extension: BCMath, Ctype, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML)</li>
+                        <li>Composer (ล่าสุด)</li>
+                        <li>Node.js & NPM</li>
+                        <li>MySQL หรือ MariaDB</li>
+                    </ul>
+                </li>
+
+                <li>
+                    <h3>ติดตั้ง Dependencies</h3>
+                    <div class="code-block" data-lang="terminal">
+<code><span class="code-comment"># ติดตั้ง PHP Packages</span>
+composer install --optimize-autoloader --no-dev
+
+<span class="code-comment"># ติดตั้ง Frontend Assets</span>
+npm install
+npm run build</code>
+                    </div>
+                </li>
+
+                <li>
+                    <h3>ตั้งค่าฐานข้อมูล</h3>
+                    <p>คัดลอกไฟล์ <code>.env.example</code> เป็น <code>.env</code> แล้วแก้ไขค่า:</p>
+                    <div class="code-block" data-lang="env">
+<code>DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=agri_equip_db
+DB_USERNAME=root
+DB_PASSWORD=your_password</code>
+                    </div>
+                    <p class="mt-2">จากนั้นรันคำสั่ง:</p>
+                    <div class="code-block" data-lang="bash">
+<code>php artisan key:generate
+php artisan migrate --seed
+php artisan storage:link</code>
+                    </div>
+                </li>
+            </ol>
+        </section>
+
+        <!-- API Setup -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">🔌</span>
+                <h2 class="section-title">การตั้งค่าระบบ API</h2>
+            </div>
+
+            <p class="mb-3">เชื่อมต่อ Line Notify, PromptPay และระบบเช็คสลิป</p>
+
+            <div class="quick-start-grid">
+                <div class="quick-card">
+                    <h3>Line Notify Setup</h3>
+                    <p>เพื่อให้ระบบแจ้งเตือนงานใหม่เข้ากลุ่ม Line พนักงาน:</p>
+                    <ol>
+                        <li>ไปที่ Line Notify และเข้าสู่ระบบ</li>
+                        <li>เลือก "Generate Token" เลือกกลุ่มที่ต้องการแจ้งเตือน</li>
+                        <li>นำ Token มาใส่ในไฟล์ <code>.env</code></li>
+                    </ol>
+                    <div class="code-block" data-lang="env">
+<code>LINE_NOTIFY_TOKEN=your_token_here</code>
+                    </div>
+                </div>
+
+                <div class="quick-card">
+                    <h3>PromptPay & Slip Check</h3>
+                    <p>ตั้งค่าบัญชีรับเงินและการตรวจสอบสลิปอัตโนมัติ:</p>
+                    <div class="code-block" data-lang="env">
+<code><span class="code-comment"># เบอร์พร้อมเพย์</span>
+PROMPTPAY_ID=0812345678
+
+<span class="code-comment"># API สำหรับเช็คสลิป</span>
+SLIPOK_API_KEY=your_api_key</code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Guide -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">👨‍💼</span>
+                <h2 class="section-title">คู่มือผู้ดูแลระบบ (Admin)</h2>
+            </div>
+
+            <div class="info-box">
+                <h4>📋 ภาพรวมการใช้งาน</h4>
+                <p>จัดการงาน เครื่องจักร และพนักงาน</p>
+            </div>
+
+            <ol class="step-list">
+                <li>
+                    <h3>การจัดการการจอง (Booking Flow)</h3>
+                    <ul>
+                        <li><strong>งานใหม่:</strong> เมื่อลูกค้าจองผ่านหน้าเว็บ งานจะเข้ามาที่เมนู "รายการจอง" สถานะเป็น Pending</li>
+                        <li><strong>ตรวจสอบการจ่ายเงิน:</strong> หากลูกค้าแนบสลิป ระบบจะพยายามเช็คอัตโนมัติ หรือ Admin กดเช็คเองได้</li>
+                        <li><strong>มอบหมายงาน:</strong> คลิก "จัดการ" เพื่อเลือกเครื่องจักรและพนักงานขับ</li>
+                        <li><strong>อนุมัติงาน:</strong> เปลี่ยนสถานะเป็น Confirmed ระบบจะแจ้งเตือน Line ไปยังพนักงานทันที</li>
+                    </ul>
+                </li>
+
+                <li>
+                    <h3>ระบบน้ำมัน (Fuel Management)</h3>
+                    <ul>
+                        <li><strong>เติมสต็อก:</strong> ไปที่เมนู "น้ำมัน" → "บันทึกการซื้อ" เมื่อมีการซื้อน้ำมันเข้าถังใหญ่</li>
+                        <li><strong>อนุมัติการเบิก:</strong> เมื่อพนักงานขอน้ำมัน รายการจะขึ้นรออนุมัติ Admin ต้องตรวจสอบแล้วกด "อนุมัติ" สต็อกจะตัดอัตโนมัติ</li>
+                    </ul>
+                </li>
+
+                <li>
+                    <h3>รายงาน (Reports)</h3>
+                    <ul>
+                        <li>รายงานรายได้รายเดือน/รายปี</li>
+                        <li>รายงานการใช้น้ำมันเทียบกับพื้นที่งาน (คำนวณกำไร/ขาดทุนต่องาน)</li>
+                        <li>ประวัติการซ่อมบำรุงเครื่องจักรแต่ละคัน</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Staff Guide -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">🧑‍🔧</span>
+                <h2 class="section-title">คู่มือพนักงานขับรถ (Staff)</h2>
+            </div>
+
+            <div class="info-box success">
+                <h4>📱 ใช้งานผ่านมือถือ</h4>
+                <p>เพื่อรับงานและลงบันทึก</p>
+            </div>
+
+            <ol class="step-list">
+                <li>
+                    <h3>การเข้าสู่ระบบ</h3>
+                    <p>เข้าผ่านลิงก์ <code>/staff/login</code> โดยใช้:</p>
+                    <ul>
+                        <li><strong>Username:</strong> เบอร์โทรศัพท์ที่ลงทะเบียนไว้</li>
+                        <li><strong>Password:</strong> รหัสผ่าน (ค่าเริ่มต้นมักเป็น 123456)</li>
+                    </ul>
+                </li>
+
+                <li>
+                    <h3>ขั้นตอนการทำงาน</h3>
+                    <ol>
+                        <li><strong>รับงาน:</strong> ดูรายการ "งานวันนี้" ในหน้า Dashboard</li>
+                        <li><strong>เริ่มงาน:</strong> เมื่อถึงหน้างาน ให้กดปุ่ม "เริ่มงาน" (ระบบจะบันทึกเวลา)</li>
+                        <li><strong>ถ่ายรูป:</strong> ควรถ่ายรูปสภาพแปลงก่อนและหลังทำงานเก็บไว้</li>
+                        <li><strong>จบงาน:</strong> เมื่อทำเสร็จ กด "จบงาน" ระบบจะคำนวณชั่วโมงทำงานให้</li>
+                    </ol>
+                </li>
+
+                <li>
+                    <h3>การเบิกน้ำมัน</h3>
+                    <div class="info-box warning">
+                        <p><strong>⚠️ สำคัญ:</strong> ต้องทำรายการเบิกก่อนเติมน้ำมันจริงเสมอ</p>
+                    </div>
+                    <ul>
+                        <li>ไปที่เมนู "เบิกน้ำมัน"</li>
+                        <li>เลือกเครื่องจักรที่ใช้</li>
+                        <li>ระบุจำนวนลิตร</li>
+                        <li>รอ Admin อนุมัติ หรือแจ้ง Admin ให้กดอนุมัติทันที</li>
+                    </ul>
+                </li>
+            </ol>
+        </section>
+
+        <!-- Troubleshooting -->
+        <section class="section">
+            <div class="section-header">
+                <span class="section-icon">🔍</span>
+                <h2 class="section-title">การแก้ไขปัญหา (Troubleshooting)</h2>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <span>อัปโหลดรูปสลิปไม่ได้ / ไฟล์ใหญ่เกินไป</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>เช็คการตั้งค่า <code>php.ini</code> บน Server:</p>
+                    <div class="code-block" data-lang="ini">
+<code>upload_max_filesize = 10M
+post_max_size = 12M</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <span>หน้าเว็บขึ้น 500 Server Error</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>ส่วนใหญ่เกิดจากโฟลเดอร์ storage ไม่มีสิทธิ์เขียน หรือ .env ผิดพลาด:</p>
+                    <div class="code-block" data-lang="bash">
+<code>chmod -R 775 storage bootstrap/cache
+php artisan optimize:clear</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFAQ(this)">
+                    <span>Line Notify ไม่แจ้งเตือน</span>
+                    <span>▼</span>
+                </div>
+                <div class="faq-answer">
+                    <p>ตรวจสอบว่า:</p>
+                    <ul>
+                        <li>Token ใน <code>.env</code> ถูกต้องหรือไม่</li>
+                        <li>เชิญบอท Line Notify เข้ากลุ่มหรือยัง</li>
+                        <li>ลองรันคำสั่ง <code>php artisan config:clear</code> เพื่อล้างค่าเก่า</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div>
+                <h3>📚 เอกสารระบบ</h3>
+                <a href="#quick-start">เริ่มต้นด่วน</a>
+                <a href="#installation">การติดตั้ง</a>
+                <a href="#configuration">การตั้งค่า</a>
+                <a href="#admin">ผู้ดูแลระบบ</a>
+            </div>
+            <div>
+                <h3>🔗 ลิงก์สำคัญ</h3>
+                <a href="https://github.com/natthaphol2019/agri-equip" target="_blank">GitHub Repository</a>
+                <a href="#">API Documentation</a>
+                <a href="#">Video Tutorials</a>
+            </div>
+            <div>
+                <h3>📞 ติดต่อทีม Dev</h3>
+                <a href="https://github.com/natthaphol2019/agri-equip/issues">Report Issue</a>
+                <a href="mailto:admin@agri-equip.com">admin@agri-equip.com</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            © 2024 Agri-Equip Management System. Document Version 2.0 (Complete Edition)
+        </div>
+    </footer>
+
+    <script>
+        // FAQ Toggle
+        function toggleFAQ(element) {
+            const faqItem = element.parentElement;
+            const isActive = faqItem.classList.contains('active');
+            
+            // Close all FAQs
+            document.querySelectorAll('.faq-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Open clicked FAQ if it wasn't active
+            if (!isActive) {
+                faqItem.classList.add('active');
+            }
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll reveal animation
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all sections
+        document.querySelectorAll('.section, .feature-card, .quick-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
