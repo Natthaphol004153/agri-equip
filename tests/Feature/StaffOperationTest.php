@@ -99,4 +99,35 @@ class StaffOperationTest extends TestCase
             'current_balance' => 80
         ]);
     }
+    // ✅ 3. ทดสอบว่า: ถ้ายังจ่ายไม่ครบ จะปิดงานไม่ได้ถ้าไม่แนบสลิป
+    public function test_staff_cannot_finish_unpaid_job_without_slip()
+    {
+        // 1. สร้างงานที่ยังจ่ายไม่ครบ (ยอด 5000 จ่ายมัดจำแค่ 1000 -> ค้าง 4000)
+        $job = Booking::create([
+            'job_number' => 'JOB-TEST-UNPAID',
+            'customer_id' => $this->customer->id,
+            'equipment_id' => $this->equipment->id,
+            'assigned_staff_id' => $this->staff->id,
+            'scheduled_start' => now()->subHour(),
+            'scheduled_end' => now()->addHour(),
+            'total_price' => 5000,
+            'deposit_amount' => 1000, // ยังค้างจ่าย!
+            'status' => 'in_progress'
+        ]);
+
+        // 2. พนักงานกด Finish (แนบแค่รูปงาน แต่ "ไม่แนบสลิป")
+        $response = $this->actingAs($this->staff)->post(route('staff.jobs.finish', $job->id), [
+            'job_image' => UploadedFile::fake()->image('job_done.jpg'),
+            // 'payment_proof' => ไม่ส่งไฟล์นี้มา
+        ]);
+
+        // 3. ต้องเจอ Error แจ้งเตือนที่ field 'payment_proof'
+        $response->assertSessionHasErrors('payment_proof');
+        
+        // สถานะต้องยังไม่เปลี่ยนเป็น completed
+        $this->assertDatabaseHas('bookings', [
+            'id' => $job->id,
+            'status' => 'in_progress'
+        ]);
+    }
 }
