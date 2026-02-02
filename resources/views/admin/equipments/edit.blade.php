@@ -5,6 +5,7 @@
 
 @section('content')
 <div class="max-w-5xl mx-auto">
+    {{-- ปุ่มย้อนกลับ --}}
     <div class="mb-6">
         <a href="{{ route('admin.equipments.index') }}" class="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1 transition w-fit">
             <i class="fa-solid fa-arrow-left"></i> กลับหน้ารายการ
@@ -16,8 +17,10 @@
         @method('PUT')
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {{-- 🟢 LEFT --}}
+            {{-- 🟢 LEFT COLUMN: ข้อมูล --}}
             <div class="lg:col-span-2 space-y-6">
+                
+                {{-- Card 1: ข้อมูลทั่วไป --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h3 class="font-bold text-gray-800 text-lg mb-6 flex items-center gap-2 border-b border-gray-100 pb-3">
                         <i class="fa-solid fa-pen-to-square text-orange-500"></i> ข้อมูลทั่วไป
@@ -48,6 +51,7 @@
                     </div>
                 </div>
 
+                {{-- Card 2: การตั้งค่า --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h3 class="font-bold text-gray-800 text-lg mb-6 flex items-center gap-2 border-b border-gray-100 pb-3">
                         <i class="fa-solid fa-screwdriver-wrench text-orange-500"></i> การตั้งค่า
@@ -69,12 +73,15 @@
                 </div>
             </div>
 
-            {{-- 🔵 RIGHT --}}
+            {{-- 🔵 RIGHT COLUMN: รูปภาพ & ปุ่มบันทึก --}}
             <div class="lg:col-span-1 space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <label class="block text-sm font-bold text-gray-700 mb-3">รูปภาพ</label>
                     <div class="relative w-full aspect-square bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden hover:bg-gray-100 transition group cursor-pointer" onclick="document.getElementById('imageInput').click()">
+                        {{-- รูปภาพ Preview --}}
                         <img id="imagePreview" src="{{ $equipment->image_path ? asset($equipment->image_path) : '' }}" class="absolute inset-0 w-full h-full object-cover {{ $equipment->image_path ? '' : 'hidden' }}">
+                        
+                        {{-- Placeholder เมื่อไม่มีรูป --}}
                         <div id="uploadPlaceholder" class="text-center p-4 {{ $equipment->image_path ? 'hidden' : '' }}">
                             <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2"></i>
                             <p class="text-xs text-gray-500">คลิกเปลี่ยนรูป</p>
