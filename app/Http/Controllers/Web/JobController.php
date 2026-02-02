@@ -8,37 +8,53 @@ use App\Models\Booking;
 use App\Models\User;
 use App\Models\Customer;
 use App\Models\Equipment;
+use App\Services\BookingService; // ✅ แก้ไข: ต้องมี s ต่อท้าย Services
 use Carbon\Carbon;
+use Exception; // ✅ เพิ่ม: สำหรับดักจับ Error เวลาจองไม่ได้
 
 class JobController extends Controller
 {
+    // ตัวแปรสำหรับเรียกใช้ Service
+    protected $bookingService;
+
+    // ✅ Constructor: เชื่อมต่อกับ BookingService
+    public function __construct(BookingService $bookingService)
+    {
+        $this->bookingService = $bookingService;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. 📋 READ ZONE (ดูข้อมูล)
+    |--------------------------------------------------------------------------
+    | ส่วนของการแสดงผลรายการ, การค้นหา, และรายละเอียดงาน
+    */
+
     /**
-     * 🟢 แสดงรายการงานทั้งหมด (Admin View)
+     * 🟢 หน้าแสดงรายการงานทั้งหมด (Dashboard / List)
      */
     public function index(Request $request)
     {
-        // 1. รับค่า Filter (เพิ่ม machine_type)
+        // --- 1. รับค่า Filter ---
         $status = $request->get('status', 'all');
-        $machineType = $request->get('machine_type', 'all'); // <--- 🔥 เพิ่มบรรทัดนี้
+        $machineType = $request->get('machine_type', 'all');
         $search = $request->get('search');
 
-        // 2. Query ข้อมูล
-        $query = Booking::with(['customer', 'equipment', 'assignedStaff'])
-            ->latest(); // เรียงจากใหม่ไปเก่า
+        // --- 2. เริ่ม Query ข้อมูล ---
+        $query = Booking::with(['customer', 'equipment', 'assignedStaff'])->latest();
 
-        // 3. กรองตามสถานะ
+        // --- 3. กรองข้อมูล (Filter) ---
         if ($status !== 'all') {
             $query->where('status', $status);
         }
 
-        // 4. 🔥 กรองตามประเภทเครื่องจักร [เพิ่มใหม่]
         if ($machineType !== 'all') {
             $query->whereHas('equipment', function ($q) use ($machineType) {
                 $q->where('type', $machineType);
             });
         }
 
-        // 5. ค้นหา (ชื่อลูกค้า หรือ เลข Job)
+        // --- 4. ค้นหา (Search) ---
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('customer', function ($sub) use ($search) {
@@ -47,13 +63,13 @@ class JobController extends Controller
             });
         }
 
-        // 6. Pagination
+        // --- 5. แบ่งหน้า (Pagination) ---
         $jobs = $query->paginate(10)->withQueryString();
 
-        // 7. โหลดข้อมูล Staff ไว้สำหรับ Modal "มอบหมายงานด่วน"
+        // --- 6. เตรียมข้อมูล Staff สำหรับ Modal ---
         $staffs = User::where('role', 'staff')->where('is_active', true)->get();
 
-        // ถ้าเป็น AJAX Request (ตอนกด Tab หรือ Search) ให้ส่งเฉพาะตารางกลับไป
+        // กรณีเป็น AJAX (เช่น กดเปลี่ยนหน้า) ส่งกลับเฉพาะตาราง
         if ($request->ajax()) {
             return view('admin.jobs.table', compact('jobs'))->render();
         }
@@ -62,7 +78,23 @@ class JobController extends Controller
     }
 
     /**
-     * 🟢 ฟอร์มสร้างงานใหม่
+     * 🟢 หน้าแสดงรายละเอียดงานรายตัว (Show Detail)
+     */
+    public function show($id)
+    {
+        $job = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
+        return view('admin.jobs.show', compact('job'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. 📝 CREATE & EDIT ZONE (เพิ่ม/แก้ไข)
+    |--------------------------------------------------------------------------
+    | ส่วนของการสร้างงานใหม่ และแก้ไขข้อมูลงานเดิม
+    */
+
+    /**
+     * 🟢 แสดงฟอร์มสร้างงานใหม่
      */
     public function create()
     {
@@ -75,53 +107,48 @@ class JobController extends Controller
     }
 
     /**
-     * 🟢 บันทึกงานใหม่
+     * 🟢 บันทึกงานใหม่ (Store) - 🔥 แก้ไขให้ใช้ Service เช็คคิว
      */
     public function store(Request $request)
     {
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'equipment_id' => 'required|exists:equipment,id',
-            'assigned_staff_id' => 'required|exists:users,id',
+            'assigned_staff_id' => 'nullable|exists:users,id', // แก้เป็น nullable เผื่อยังไม่ระบุคน
             'scheduled_start' => 'required|date',
             'scheduled_end' => 'required|date|after:scheduled_start',
             'total_price' => 'required|numeric|min:0',
             'deposit_amount' => 'nullable|numeric|min:0',
         ]);
 
-        // สร้าง Job Number (เช่น JOB-20240101-0001)
-        $dateStr = date('Ymd');
-        $lastJob = Booking::where('job_number', 'like', "JOB-$dateStr-%")->latest()->first();
-        $nextNum = $lastJob ? intval(substr($lastJob->job_number, -4)) + 1 : 1;
-        $jobNumber = "JOB-$dateStr-" . sprintf('%04d', $nextNum);
+        try {
+            // เตรียมข้อมูลส่งให้ Service
+            $data = $request->only([
+                'customer_id',
+                'equipment_id',
+                'assigned_staff_id',
+                'scheduled_start',
+                'scheduled_end',
+                'total_price',
+                'deposit_amount'
+            ]);
 
-        Booking::create([
-            'job_number' => $jobNumber,
-            'customer_id' => $request->customer_id,
-            'equipment_id' => $request->equipment_id,
-            'assigned_staff_id' => $request->assigned_staff_id,
-            'scheduled_start' => $request->scheduled_start,
-            'scheduled_end' => $request->scheduled_end,
-            'total_price' => $request->total_price,
-            'deposit_amount' => $request->deposit_amount ?? 0,
-            'payment_status' => ($request->deposit_amount > 0) ? 'deposit_paid' : 'pending',
-            'status' => 'scheduled',
-        ]);
+            // กำหนดสถานะการจ่ายเงิน
+            $data['payment_status'] = ($request->deposit_amount > 0) ? 'deposit_paid' : 'pending';
 
-        return redirect()->route('admin.jobs.index')->with('success', 'สร้างงานใหม่สำเร็จ!');
+            // ✅ เรียกใช้ Service (ระบบจะเช็คคิวซ้อนและสถานะรถให้เองที่นี่)
+            $this->bookingService->createBooking($data);
+
+            return redirect()->route('admin.jobs.index')->with('success', 'สร้างงานใหม่สำเร็จ!');
+
+        } catch (Exception $e) {
+            // ❌ ถ้าจองไม่ได้ (คิวเต็ม/รถเสีย) ให้เด้งกลับพร้อมแจ้ง Error
+            return back()->with('error', 'ไม่สามารถจองได้: ' . $e->getMessage())->withInput();
+        }
     }
 
     /**
-     * 🟢 แสดงรายละเอียดงาน
-     */
-    public function show($id)
-    {
-        $job = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
-        return view('admin.jobs.show', compact('job'));
-    }
-
-    /**
-     * 🟢 แก้ไขงาน
+     * 🟢 แสดงฟอร์มแก้ไขงาน
      */
     public function edit($id)
     {
@@ -134,19 +161,19 @@ class JobController extends Controller
     }
 
     /**
-     * 🟢 อัปเดตงาน
+     * 🟢 อัปเดตข้อมูลงาน (Update)
      */
     public function update(Request $request, $id)
     {
         $job = Booking::findOrFail($id);
 
-        // ถ้าเป็น AJAX Request (จาก Quick Assign Modal)
+        // กรณี 1: แก้ไขแค่คนขับ (Quick Assign Modal)
         if ($request->ajax() && $request->has('assigned_staff_id')) {
             $job->update(['assigned_staff_id' => $request->assigned_staff_id]);
             return response()->json(['success' => true, 'message' => 'มอบหมายงานสำเร็จ']);
         }
 
-        // ถ้าเป็น Form Submit ปกติ (จากหน้า Edit)
+        // กรณี 2: แก้ไขข้อมูลทั่วไป (Full Edit Form)
         $validated = $request->validate([
             'customer_id' => 'required',
             'equipment_id' => 'required',
@@ -161,12 +188,65 @@ class JobController extends Controller
         return redirect()->route('admin.jobs.index')->with('success', 'อัปเดตข้อมูลสำเร็จ');
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | 3. ⚙️ ACTION ZONE (ดำเนินการ)
+    |--------------------------------------------------------------------------
+    | ส่วนของการอนุมัติ, ยกเลิก, เปลี่ยนสถานะต่างๆ
+    */
+
     /**
-     * 🟢 API เช็คคิวงาน (สำหรับหน้า Create)
+     * 🟢 หน้าตรวจสอบงานก่อนอนุมัติ (Review)
+     */
+    public function review($id)
+    {
+        $job = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
+        return view('admin.jobs.review', compact('job'));
+    }
+
+    /**
+     * 🟢 อนุมัติงานและปิด Job (Approve & Complete)
+     */
+    public function approve(Request $request, $id)
+    {
+        $job = Booking::findOrFail($id);
+        $job->update(['status' => 'completed']);
+        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว!');
+    }
+
+    /**
+     * 🟢 ยกเลิกงาน (Cancel)
+     */
+    public function cancel($id)
+    {
+        $job = Booking::findOrFail($id);
+        $job->update(['status' => 'cancelled']);
+        return response()->json(['success' => true, 'message' => 'ยกเลิกงานเรียบร้อย']);
+    }
+
+    /**
+     * 🟢 เปลี่ยนคนขับด่วน (API Endpoint)
+     */
+    public function updateDriver(Request $request, $id)
+    {
+        $job = Booking::findOrFail($id);
+        $job->update(['assigned_staff_id' => $request->staff_id]);
+        return back()->with('success', 'เปลี่ยนคนขับเรียบร้อย');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. 🛠️ HELPER ZONE (ตัวช่วย)
+    |--------------------------------------------------------------------------
+    | API เช็คข้อมูล, พิมพ์ใบเสร็จ, ฟังก์ชันแปลงค่าเงิน
+    */
+
+    /**
+     * 🟢 API: เช็คคิวงานตามวันที่ (ใช้ตอนเลือกวันในหน้า Create)
      */
     public function getBookingsByDate(Request $request)
     {
-        $date = $request->date; // Y-m-d
+        $date = $request->date;
         $equipmentId = $request->equipment_id;
 
         $query = Booking::whereDate('scheduled_start', $date)
@@ -189,70 +269,20 @@ class JobController extends Controller
     }
 
     /**
-     * 🟢 เปลี่ยนคนขับ (API)
+     * 🟢 พิมพ์ใบเสร็จรับเงิน (Receipt)
      */
-    public function updateDriver(Request $request, $id)
-    {
-        $job = Booking::findOrFail($id);
-        $job->update(['assigned_staff_id' => $request->staff_id]);
-        return back()->with('success', 'เปลี่ยนคนขับเรียบร้อย');
-    }
-
-    /**
-     * 🟢 ยกเลิกงาน
-     */
-    public function cancel($id)
-    {
-        $job = Booking::findOrFail($id);
-        // หมายเหตุ: เช็ค enum ใน database ด้วยนะครับว่าเป็น 'canceled' หรือ 'cancelled' (เบิ้ล l)
-        $job->update(['status' => 'cancelled']); 
-        return response()->json(['success' => true, 'message' => 'ยกเลิกงานเรียบร้อย']);
-    }
-
-    /**
-     * 🟢 หน้าตรวจสอบงาน (Review)
-     */
-    public function review($id)
-    {
-        $job = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
-        return view('admin.jobs.review', compact('job'));
-    }
-
-    /**
-     * 🟢 อนุมัติงาน (Approve)
-     */
-    public function approve(Request $request, $id)
-    {
-        $job = Booking::findOrFail($id);
-
-        // อัปเดตสถานะเป็น "เสร็จสิ้นสมบูรณ์" (completed)
-        $job->update([
-            'status' => 'completed',
-        ]);
-
-        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว!');
-    }
-
-    // ==========================================
-    // 🛠️ ส่วนที่แก้ไข: ใบเสร็จรับเงิน
-    // ==========================================
-
     public function receipt($id)
     {
-        // 1. เปลี่ยนชื่อตัวแปรเป็น $booking ให้ตรงกับ View
         $booking = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
         
-        // 2. คำนวณยอดเงิน
         $net_total = $booking->total_price - $booking->deposit_amount;
-        
-        // 3. แปลงเลขเป็นคำอ่านภาษาไทย
-        $baht_text = $this->baht_text($net_total);
+        $baht_text = $this->baht_text($net_total); // แปลงเลขเป็นคำอ่าน
 
         return view('admin.jobs.receipt', compact('booking', 'net_total', 'baht_text'));
     }
 
     /**
-     * ฟังก์ชันแปลงตัวเลขเป็นภาษาไทย (Baht Text)
+     * 🔢 ฟังก์ชันแปลงตัวเลขเป็นภาษาไทย (Baht Text)
      */
     private function baht_text($number)
     {

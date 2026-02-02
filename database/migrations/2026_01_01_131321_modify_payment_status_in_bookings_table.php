@@ -11,7 +11,9 @@ return new class extends Migration {
     public function up(): void
     {
         // ใช้ Raw SQL เพราะการแก้ ENUM ใน Laravel บางทีมีปัญหากับ Doctrine DBAL
-        DB::statement("ALTER TABLE bookings MODIFY COLUMN payment_status ENUM('pending', 'deposit_paid', 'paid', 'partial') DEFAULT 'pending'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE bookings MODIFY COLUMN payment_status ENUM('pending', 'deposit_paid', 'paid', 'partial') DEFAULT 'pending'");
+        }
     }
 
     /**

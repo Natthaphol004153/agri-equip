@@ -25,11 +25,18 @@ return new class extends Migration {
             // รายละเอียด
             $table->text('description');
             $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
-            $table->decimal('cost', 10, 2)->default(0);
+            
+            // 🔴 แก้ไข: เปลี่ยน cost เป็น total_cost ให้ตรงกับ Controller
+            $table->decimal('total_cost', 10, 2)->default(0);
 
-            // รูปภาพและผู้ซ่อม
+            // รูปภาพ
             $table->string('image_url')->nullable();
-            $table->string('technician_name')->nullable();
+            
+            // 🔴 แก้ไข: เปลี่ยน technician_name เป็น service_provider
+            $table->string('service_provider')->nullable();
+
+            // 🔴 เพิ่ม: reset_counter (เพื่อให้เก็บประวัติว่าการซ่อมนี้รีเซ็ตชั่วโมงหรือไม่)
+            $table->boolean('reset_counter')->default(false);
 
             // วันที่
             $table->dateTime('maintenance_date')->nullable(); // วันที่เริ่ม
