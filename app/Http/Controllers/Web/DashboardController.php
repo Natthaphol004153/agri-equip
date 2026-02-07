@@ -21,7 +21,8 @@ class DashboardController extends Controller
         // ------------------------------------------------------------------
         $totalIncome = Booking::where('status', 'completed')->sum('total_price');
 
-        $maintenanceCost = MaintenanceLog::sum('cost'); 
+        // ✅ แก้ไข: เปลี่ยน cost -> total_cost
+        $maintenanceCost = MaintenanceLog::sum('total_cost'); 
         
         $fuelPurchaseCost = FuelPurchase::sum('total_cost'); 
         
@@ -55,6 +56,7 @@ class DashboardController extends Controller
         // ------------------------------------------------------------------
         // 4. Calendar Events (ปฏิทินงาน)
         // ------------------------------------------------------------------
+        // (ส่วนนี้เหมือนเดิม แต่ผมใส่ไว้ให้ครบไฟล์เพื่อให้ก๊อปปี้ไปวางทับได้เลยครับ)
         $calendarBookings = Booking::with(['customer', 'equipment', 'assignedStaff'])
             ->where('status', '!=', 'cancelled')
             ->get()
@@ -123,7 +125,8 @@ class DashboardController extends Controller
             ->groupBy('date')->pluck('total', 'date');
 
         // รายจ่ายค่าซ่อมบำรุง (Maintenance Cost)
-        $maintCosts = MaintenanceLog::selectRaw('DATE(completion_date) as date, SUM(cost) as total')
+        // ✅ แก้ไข: เปลี่ยน SUM(cost) -> SUM(total_cost)
+        $maintCosts = MaintenanceLog::selectRaw('DATE(completion_date) as date, SUM(total_cost) as total')
             ->where('status', 'completed')
             ->whereBetween('completion_date', [$start, $end])
             ->groupBy('date')->pluck('total', 'date');
@@ -162,9 +165,10 @@ class DashboardController extends Controller
         // ---------------------------------------------------------
         // ✅ เพิ่ม: คำนวณยอดรวมเจาะจง ตามช่วงเวลาที่เลือก (Flex)
         // ---------------------------------------------------------
+        // ✅ แก้ไข: เปลี่ยน sum('cost') -> sum('total_cost')
         $summaryMaintenance = MaintenanceLog::where('status', 'completed')
             ->whereBetween('completion_date', [$start, $end])
-            ->sum('cost');
+            ->sum('total_cost');
 
         $summaryFuel = FuelPurchase::whereBetween('purchase_date', [$start, $end])
             ->sum('total_cost');
@@ -179,7 +183,6 @@ class DashboardController extends Controller
                 'total_cost' => $sumCost,
                 'net_profit' => $sumIncome - $sumCost,
                 'total_hours' => $sumHours,
-                // 👇 ส่งค่าใหม่ไปด้วย
                 'total_maintenance' => $summaryMaintenance, 
                 'total_fuel' => $summaryFuel 
             ]

@@ -25,8 +25,13 @@ class MaintenanceSeeder extends Seeder
                     'maintenance_type' => rand(0, 1) ? 'preventive' : 'corrective',
                     'description' => 'เช็คระยะตามกำหนด / เปลี่ยนถ่ายน้ำมันเครื่อง',
                     'status' => 'completed',
-                    'cost' => rand(500, 5000),
-                    'technician_name' => 'ช่างศูนย์บริการ (Seeder)',
+                    
+                    // ✅ แก้ไข: เปลี่ยนจาก cost เป็น total_cost
+                    'total_cost' => rand(500, 5000), 
+                    
+                    // ✅ แก้ไข: เปลี่ยนจาก technician_name เป็น service_provider
+                    'service_provider' => 'ช่างศูนย์บริการ (Seeder)', 
+                    
                     'maintenance_date' => $date,
                     'completion_date' => $date->copy()->addHours(4),
                 ]);

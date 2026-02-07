@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Exports\UsersExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserController extends Controller
 {
@@ -74,10 +76,22 @@ class UserController extends Controller
 
     public function destroy($id)
     {
-        if(Auth::id() != $id) User::destroy($id);
+        if (Auth::id() != $id)
+            User::destroy($id);
         return back()->with('success', 'ลบพนักงานสำเร็จ');
     }
 
-    public function profileForm() { return view('admin.profile', ['user' => Auth::user()]); }
-    public function updateProfile(Request $request) { /* Logic */ return back(); }
+    public function profileForm()
+    {
+        return view('admin.profile', ['user' => Auth::user()]);
+    }
+    public function updateProfile(Request $request)
+    { /* Logic */
+        return back();
+    }
+    public function export()
+    {
+        // สั่งให้ดาวน์โหลดไฟล์ชื่อ users.xlsx ทันที
+        return Excel::download(new UsersExport, 'users.xlsx');
+    }
 }

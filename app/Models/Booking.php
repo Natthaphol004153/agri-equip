@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory; // เผื่อใช้ Factory
 
 class Booking extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasFactory;
 
     protected $fillable = [
         'job_number',
@@ -22,8 +23,9 @@ class Booking extends Model
         'total_price',
         'deposit_amount',
         'payment_status',
+        'payment_method',      // ✅ ต้องมี
         'payment_proof',
-        'payment_trans_ref', // ✅ เพิ่มบรรทัดนี้: เพื่อเก็บเลข Ref ของสลิป (เช่น 014xxxx)
+        'payment_trans_ref',   // ✅ ต้องมี
         'image_path',
         'note'
     ];
@@ -36,6 +38,8 @@ class Booking extends Model
         'deposit_amount' => 'decimal:2',
         'total_price' => 'decimal:2',
     ];
+
+    // --- Relationships ---
 
     public function customer()
     {

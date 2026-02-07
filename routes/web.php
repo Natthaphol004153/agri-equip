@@ -13,6 +13,8 @@ use App\Http\Controllers\Web\MaintenanceController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\StaffLoginController;
 use App\Http\Controllers\Web\SettingController;
+// ✅ เพิ่ม Controller สำหรับ Excel (เดี๋ยวต้องไปสร้างไฟล์นี้)
+use App\Http\Controllers\Web\ExcelExportController; 
 
 /*
 |--------------------------------------------------------------------------
@@ -88,7 +90,6 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // --- ⛽ Fuel Management (Stock In / Inventory) ---
-        // ✅ แก้ไข: ย้ายมาไว้ตรงนี้ เพื่อให้ Admin จัดการได้ครบถ้วน
         Route::prefix('fuel-stocks')->name('fuel.')->controller(FuelStockController::class)->group(function() {
             Route::get('/', 'index')->name('index');           // ดูสต็อก
             Route::get('/purchase', 'createPurchase')->name('purchase'); // ฟอร์มซื้อ
@@ -101,6 +102,14 @@ Route::middleware(['auth'])->group(function () {
 
         // --- Reports ---
         Route::get('/reports', function () { return view('admin.reports.index'); })->name('reports.index');
+
+        // ✅ --- EXCEL EXPORT ZONE (เพิ่มใหม่) ---
+        // ตัวอย่าง: เรียกใช้ผ่าน route('admin.export.jobs')
+        Route::prefix('export')->name('export.')->controller(ExcelExportController::class)->group(function() {
+            Route::get('/jobs', 'exportJobs')->name('jobs');         // โหลดรายงานงานทั้งหมด
+            Route::get('/customers', 'exportCustomers')->name('customers'); // โหลดรายชื่อลูกค้า
+            Route::get('/maintenance', 'exportMaintenance')->name('maintenance'); // โหลดประวัติซ่อมบำรุง
+        });
 
         // --- Profile ---
         Route::get('/profile', [UserController::class, 'profileForm'])->name('profile');
@@ -137,11 +146,8 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // --- ⛽ Fuel Usage (เบิกใช้น้ำมัน) ---
-        // ส่วนนี้สำหรับพนักงานบันทึกการ "เติมไปใช้"
         Route::get('/fuel/create', [FuelController::class, 'create'])->name('fuel.create');
         Route::post('/fuel/store', [FuelController::class, 'store'])->name('fuel.store');
-
-        // ❌ เอาส่วน Fuel Stock ออกจาก Staff (เพราะ Staff ไม่ควรเพิ่มถัง หรือซื้อน้ำมันเข้าสต็อก)
 
         // --- General Report ---
         Route::post('/report-general', [StaffJobController::class, 'reportGeneral'])->name('report_general');

@@ -13,6 +13,7 @@ use App\Services\EasySlipSDK;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
 class StaffJobController extends Controller
@@ -145,14 +146,15 @@ class StaffJobController extends Controller
 
         $request->validate([
             'job_image' => 'required|image|max:10240', // รูปหน้างาน
-            'payment_proof' => ($balance > 0) ? 'required|image|max:10240' : 'nullable|image|max:10240', // สลิป (ถ้ามี)
+            'payment_method' => 'required|in:transfer,cash',
+            'payment_proof' => ($balance > 0 && $request->payment_method == 'transfer') ? 'required|image|max:10240' : 'nullable|image|max:10240', // สลิป (ถ้ามี)
             'note' => 'nullable|string',
         ]);
 
         $transRef = null;
 
-        // --- ขั้นตอนตรวจสอบสลิป (เฉพาะกรณียอดคงเหลือ > 0) ---
-        if ($balance > 0 && $request->hasFile('payment_proof')) {
+        // --- ขั้นตอนตรวจสอบสลิป (เฉพาะกรณียอดคงเหลือ > 0 และเลือกโอนเงิน) ---
+        if ($balance > 0 && $request->payment_method == 'transfer' && $request->hasFile('payment_proof')) {
             
             Log::info("Payment Verification: Verifying Slip with EasySlip...");
 
@@ -214,15 +216,22 @@ class StaffJobController extends Controller
         $endTime = Carbon::now();
 
         // --- Update Database ---
-        $job->update([
+        $updateData = [
             'status' => 'completed_pending_approval',
             'actual_end' => $endTime,
             'image_path' => $imagePath,
             'payment_proof' => $paymentProofPath,
-            'payment_status' => $paymentProofPath ? 'paid' : $job->payment_status,
+            'payment_method' => $request->payment_method, // บันทึกวิธีจ่าย
             'payment_trans_ref' => $transRef,
             'note' => $request->note,
-        ]);
+        ];
+
+        // 🔥 ถ้าจ่ายครบ (ไม่ว่าจะโอนหรือเงินสด) ปรับสถานะเป็น Paid เลย
+        if ($balance > 0) {
+            $updateData['payment_status'] = 'paid'; 
+        }
+
+        $job->update($updateData);
 
         // ✅ ส่งแจ้งเตือน Line: จบงาน
         try {
@@ -317,12 +326,12 @@ class StaffJobController extends Controller
         // สร้าง Log การซ่อม
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
-            'reported_by' => Auth::id(),
+            // 'reported_by' => Auth::id(), // ⚠️ Commented out: Database ไม่มี field นี้ ถ้าต้องการใช้ต้องเพิ่ม Migration ก่อน
             'description' => $request->description,
-            'image_path' => $imagePath,
+            'image_url' => $imagePath, // ✅ แก้ไข: เปลี่ยนจาก image_path เป็น image_url ตาม DB
             'maintenance_date' => now(),
             'status' => 'pending',
-            'cost' => 0
+            'total_cost' => 0 // ✅ แก้ไข: เปลี่ยนจาก cost เป็น total_cost ตาม DB
         ]);
 
         // อัปเดตสถานะรถเป็น Maintenance
@@ -337,7 +346,7 @@ class StaffJobController extends Controller
     public function maintenanceIndex()
     {
         $myMaintenanceLogs = MaintenanceLog::with('equipment')
-            ->where('reported_by', Auth::id())
+            // ->where('reported_by', Auth::id()) // ⚠️ Commented out: Database ไม่มี field นี้
             ->latest()
             ->limit(20)
             ->get();

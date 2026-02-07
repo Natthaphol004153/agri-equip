@@ -119,6 +119,8 @@ class JobController extends Controller
             'scheduled_end' => 'required|date|after:scheduled_start',
             'total_price' => 'required|numeric|min:0',
             'deposit_amount' => 'nullable|numeric|min:0',
+            'payment_proof' => 'nullable|image|max:5120',
+            'payment_method' => 'nullable|in:transfer,cash', // ✅ รับค่านี้เพิ่ม
         ]);
 
         try {
@@ -130,12 +132,17 @@ class JobController extends Controller
                 'scheduled_start',
                 'scheduled_end',
                 'total_price',
-                'deposit_amount'
+                'deposit_amount',
+                'payment_method'
             ]);
 
             // กำหนดสถานะการจ่ายเงิน
             $data['payment_status'] = ($request->deposit_amount > 0) ? 'deposit_paid' : 'pending';
 
+            // ✅ เพิ่ม: อัปโหลดรูปสลิป (ถ้ามี)
+            if ($request->hasFile('payment_proof')) {
+                $data['payment_proof'] = $request->file('payment_proof')->store('payments', 'public');
+            }
             // ✅ เรียกใช้ Service (ระบบจะเช็คคิวซ้อนและสถานะรถให้เองที่นี่)
             $this->bookingService->createBooking($data);
 
@@ -274,7 +281,7 @@ class JobController extends Controller
     public function receipt($id)
     {
         $booking = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
-        
+
         $net_total = $booking->total_price - $booking->deposit_amount;
         $baht_text = $this->baht_text($net_total); // แปลงเลขเป็นคำอ่าน
 
@@ -286,12 +293,13 @@ class JobController extends Controller
      */
     private function baht_text($number)
     {
-        if (!is_numeric($number) || $number < 0) return "-";
+        if (!is_numeric($number) || $number < 0)
+            return "-";
 
         $number = number_format($number, 2, '.', '');
         $number_parts = explode('.', $number);
-        $integer_part = (int)$number_parts[0];
-        $fraction_part = (int)$number_parts[1];
+        $integer_part = (int) $number_parts[0];
+        $fraction_part = (int) $number_parts[1];
 
         $text_numbers = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
         $text_digits = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'];
@@ -300,11 +308,11 @@ class JobController extends Controller
             $baht_text = "ศูนย์บาท";
         } else {
             $baht_text = "";
-            $str_int = strrev((string)$integer_part);
+            $str_int = strrev((string) $integer_part);
             $len = strlen($str_int);
 
             for ($i = 0; $i < $len; $i++) {
-                $digit = (int)$str_int[$i];
+                $digit = (int) $str_int[$i];
                 if ($digit != 0) {
                     if ($i % 6 == 1 && $digit == 1) {
                         $baht_text = "ยี่" . $text_digits[$i % 6] . $baht_text;
@@ -326,22 +334,27 @@ class JobController extends Controller
         if ($fraction_part == 0) {
             $baht_text .= "ถ้วน";
         } else {
-            $str_satang = ($fraction_part < 10) ? "0" . $fraction_part : (string)$fraction_part;
+            $str_satang = ($fraction_part < 10) ? "0" . $fraction_part : (string) $fraction_part;
             $satang_text = "";
-            $first = (int)$str_satang[0];
-            $second = (int)$str_satang[1];
+            $first = (int) $str_satang[0];
+            $second = (int) $str_satang[1];
 
             if ($first > 0) {
-                if ($first == 1) $satang_text .= "สิบ";
-                elseif ($first == 2) $satang_text .= "ยี่สิบ";
-                else $satang_text .= $text_numbers[$first] . "สิบ";
+                if ($first == 1)
+                    $satang_text .= "สิบ";
+                elseif ($first == 2)
+                    $satang_text .= "ยี่สิบ";
+                else
+                    $satang_text .= $text_numbers[$first] . "สิบ";
             }
-            
+
             if ($second > 0) {
-                if ($first > 0 && $second == 1) $satang_text .= "เอ็ด";
-                else $satang_text .= $text_numbers[$second];
+                if ($first > 0 && $second == 1)
+                    $satang_text .= "เอ็ด";
+                else
+                    $satang_text .= $text_numbers[$second];
             }
-            
+
             $baht_text .= $satang_text . "สตางค์";
         }
 
