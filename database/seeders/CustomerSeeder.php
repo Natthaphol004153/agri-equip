@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Customer;
+use Illuminate\Support\Facades\Hash;
 
 class CustomerSeeder extends Seeder
 {
@@ -20,6 +21,8 @@ class CustomerSeeder extends Seeder
         ];
 
         foreach ($customers as $index => $c) {
+            $cleanPhone = str_replace(['-',' '], '', $c['phone']);
+            $password = substr($cleanPhone,-4);
             Customer::firstOrCreate(
                 ['name' => $c['name']],
                 [
@@ -27,6 +30,7 @@ class CustomerSeeder extends Seeder
                     'customer_type' => $c['type'],
                     'phone' => $c['phone'],
                     'address' => $c['address'],
+                    'password' =>Hash::make($password),
                 ]
             );
         }

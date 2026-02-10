@@ -96,21 +96,27 @@
                         <textarea name="address" rows="2" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-3">{{ old('address', $customer->address) }}</textarea>
                     </div>
                     
+                    {{-- ✅ เพิ่มช่องตำบล และกำหนด ID --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ตำบล/แขวง</label>
+                        <input type="text" id="district" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5">
+                    </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">อำเภอ/เขต</label>
-                        <input type="text" name="district" value="{{ old('district', $customer->district) }}" 
+                        <input type="text" id="amphure" name="district" value="{{ old('district', $customer->district) }}" 
                                class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">จังหวัด</label>
-                        <input type="text" name="province" value="{{ old('province', $customer->province) }}" 
+                        <input type="text" id="province" name="province" value="{{ old('province', $customer->province) }}" 
                                class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">รหัสไปรษณีย์</label>
-                        <input type="text" name="postal_code" value="{{ old('postal_code', $customer->postal_code) }}" 
+                        <input type="text" id="zipcode" name="postal_code" value="{{ old('postal_code', $customer->postal_code) }}" 
                                class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5">
                     </div>
                     
@@ -135,4 +141,24 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+{{-- ✅ เรียกใช้ Thai Address Auto Complete --}}
+<link rel="stylesheet" href="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.css') }}">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="{{ asset('vendor/jquery.thailand/JQL.min.js') }}"></script>
+<script src="{{ asset('vendor/jquery.thailand/typeahead.bundle.js') }}"></script>
+<script src="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.js') }}"></script>
+
+<script>
+    $.Thailand({
+        database: '{{ asset("vendor/jquery.thailand/db.json") }}', 
+        $district: $('#district'), // ตำบล
+        $amphoe: $('#amphure'),    // อำเภอ
+        $province: $('#province'), // จังหวัด
+        $zipcode: $('#zipcode'),   // รหัสไปรษณีย์
+    });
+</script>
+@endpush
+
 @endsection
