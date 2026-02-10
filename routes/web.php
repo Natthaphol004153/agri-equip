@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
-use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\DashboardController; // Admin Dashboard
 use App\Http\Controllers\Web\JobController;
 use App\Http\Controllers\Web\CustomerController;
 use App\Http\Controllers\Web\EquipmentController;
@@ -13,9 +13,11 @@ use App\Http\Controllers\Web\MaintenanceController;
 use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\StaffLoginController;
 use App\Http\Controllers\Web\SettingController;
-// ✅ เพิ่ม Controller สำหรับ Excel (เดี๋ยวต้องไปสร้างไฟล์นี้)
 use App\Http\Controllers\Web\ExcelExportController;
 use App\Http\Controllers\Web\CustomerAuthController;
+
+// ✅ เพิ่มบรรทัดนี้: เรียกใช้ Controller ลูกค้า (ตั้งชื่อเล่นว่า CustomerDashboardController)
+use App\Http\Controllers\Web\Customer\DashboardController as CustomerDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,29 +34,37 @@ Route::middleware('guest')->group(function () {
     Route::get('/staff/login', [StaffLoginController::class, 'showLoginForm'])->name('staff.login');
     Route::post('/staff/login', [StaffLoginController::class, 'login'])->name('staff.login.submit');
 });
-// ==============================
-// 🛒 CUSTOMER ZONE
-// ==============================
 
-// 1. ส่วนที่ยังไม่ได้ Login (Guest)
+/*
+|--------------------------------------------------------------------------
+| 🛒 CUSTOMER ZONE (ส่วนของลูกค้า)
+|--------------------------------------------------------------------------
+*/
 Route::prefix('customer')->name('customer.')->group(function () {
+    
+    // 1. ส่วนที่ยังไม่ได้ Login (Guest Customer)
     Route::middleware('guest:customer')->group(function () {
         Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
         Route::post('login', [CustomerAuthController::class, 'login'])->name('login.submit');
     });
 
-    // 2. ส่วนที่ Login แล้ว (Auth)
+    // 2. ส่วนที่ Login แล้ว (Authenticated Customer)
     Route::middleware('auth:customer')->group(function () {
-        Route::get('dashboard', function () {
-            return view('customer.dashboard');
-        })->name('dashboard');
-
+        
+        // ✅ หน้า Dashboard (แสดงประวัติ)
+        Route::get('dashboard', [CustomerDashboardController::class, 'index'])->name('dashboard');
+        
+        // ✅ หน้าดูรายละเอียดงาน (Booking Detail)
+        Route::get('booking/{id}', [CustomerDashboardController::class, 'show'])->name('booking.show');
+        
+        // ออกจากระบบ
         Route::post('logout', [CustomerAuthController::class, 'logout'])->name('logout');
     });
 });
+
 /*
 |--------------------------------------------------------------------------
-| 2. AUTHENTICATED ZONE (ต้องล็อกอินก่อน)
+| 2. AUTHENTICATED ZONE (Admin & Staff)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
@@ -72,7 +82,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/financial-data', [DashboardController::class, 'getFinancialData'])->name('dashboard.financial');
         Route::get('/menus', function () {
-            return view('admin.menus'); })->name('all-menus');
+            return view('admin.menus');
+        })->name('all-menus');
 
         // --- Main Resources ---
         Route::resource('customers', CustomerController::class);
@@ -110,11 +121,11 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{id}/start', 'start')->name('start');
         });
 
-        // --- ⛽ Fuel Management (Stock In / Inventory) ---
+        // --- ⛽ Fuel Management ---
         Route::prefix('fuel-stocks')->name('fuel.')->controller(FuelStockController::class)->group(function () {
-            Route::get('/', 'index')->name('index');           // ดูสต็อก
-            Route::get('/purchase', 'createPurchase')->name('purchase'); // ฟอร์มซื้อ
-            Route::post('/purchase', 'storePurchase')->name('store_purchase'); // บันทึกซื้อ
+            Route::get('/', 'index')->name('index');           
+            Route::get('/purchase', 'createPurchase')->name('purchase'); 
+            Route::post('/purchase', 'storePurchase')->name('store_purchase'); 
 
             // เพิ่ม/ลบ ถังน้ำมัน (Admin Only)
             Route::post('/tank', 'storeTank')->name('tank.store');
@@ -123,21 +134,21 @@ Route::middleware(['auth'])->group(function () {
 
         // --- Reports ---
         Route::get('/reports', function () {
-            return view('admin.reports.index'); })->name('reports.index');
+            return view('admin.reports.index');
+        })->name('reports.index');
 
-        // ✅ --- EXCEL EXPORT ZONE (เพิ่มใหม่) ---
-        // ตัวอย่าง: เรียกใช้ผ่าน route('admin.export.jobs')
+        // --- EXCEL EXPORT ---
         Route::prefix('export')->name('export.')->controller(ExcelExportController::class)->group(function () {
-            Route::get('/jobs', 'exportJobs')->name('jobs');         // โหลดรายงานงานทั้งหมด
-            Route::get('/customers', 'exportCustomers')->name('customers'); // โหลดรายชื่อลูกค้า
-            Route::get('/maintenance', 'exportMaintenance')->name('maintenance'); // โหลดประวัติซ่อมบำรุง
+            Route::get('/jobs', 'exportJobs')->name('jobs');
+            Route::get('/customers', 'exportCustomers')->name('customers');
+            Route::get('/maintenance', 'exportMaintenance')->name('maintenance');
         });
 
         // --- Profile ---
         Route::get('/profile', [UserController::class, 'profileForm'])->name('profile');
         Route::post('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
 
-        // --- ⚙️ Settings (ตั้งค่าระบบ) ---
+        // --- Settings ---
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
     });
@@ -167,7 +178,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/store', [StaffJobController::class, 'storeReport'])->name('store');
         });
 
-        // --- ⛽ Fuel Usage (เบิกใช้น้ำมัน) ---
+        // --- Fuel Usage ---
         Route::get('/fuel/create', [FuelController::class, 'create'])->name('fuel.create');
         Route::post('/fuel/store', [FuelController::class, 'store'])->name('fuel.store');
 
