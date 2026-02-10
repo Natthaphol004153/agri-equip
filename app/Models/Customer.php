@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
-// 1. ✅ เปลี่ยนการเรียกใช้ Class แม่
 use Illuminate\Foundation\Auth\User as Authenticatable; 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens; // ถ้าจะทำ API Login ต้องมีตัวนี้
+use Laravel\Sanctum\HasApiTokens;
 
-// 2. ✅ เปลี่ยน extends จาก Model เป็น Authenticatable
 class Customer extends Authenticatable
 {
     use HasApiTokens, HasFactory, SoftDeletes, Notifiable;
@@ -23,21 +21,20 @@ class Customer extends Authenticatable
         'longitude', 
         'customer_type', 
         'notes',
-        'password', // ✅ ต้องเพิ่ม password เข้าไปใน fillable ด้วย
-        'tax_id',   // ถ้ามีใน DB ก็เพิ่มไปครับ
-        'email',    // ถ้ามีใน DB ก็เพิ่มไปครับ
+        'password',
+        'tax_id',
+        'email',
         'district',
         'province',
-        'postal_code'
+        'postal_code',
+        'profile_image' // ✅ เพิ่มบรรทัดนี้
     ];
 
-    // ✅ ซ่อนรหัสผ่านไม่ให้แสดงตอนดึงข้อมูล
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    // ✅ แปลงประเภทข้อมูล (Optional)
     protected $casts = [
         'password' => 'hashed',
     ];

@@ -17,7 +17,8 @@
             </a>
         </div>
 
-        <form action="{{ route('admin.customers.update', $customer->id) }}" method="POST" class="p-6 md:p-8">
+        {{-- Form Content: ต้องมี enctype="multipart/form-data" --}}
+        <form action="{{ route('admin.customers.update', $customer->id) }}" method="POST" enctype="multipart/form-data" class="p-6 md:p-8">
             @csrf
             @method('PUT')
 
@@ -29,6 +30,34 @@
                     </span>
                     ข้อมูลทั่วไป
                 </h3>
+
+                {{-- ✅ ส่วนจัดการรูปโปรไฟล์ --}}
+                <div class="flex flex-col md:flex-row gap-6 mb-6 items-center md:items-start">
+                    <div class="shrink-0">
+                        <div class="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden relative group">
+                            {{-- แสดงรูปเดิม หรือ Placeholder --}}
+                            <img id="image-preview" 
+                                 src="{{ $customer->profile_image ? asset('storage/' . $customer->profile_image) : '#' }}" 
+                                 alt="Preview" 
+                                 class="w-full h-full object-cover {{ $customer->profile_image ? '' : 'hidden' }}">
+                            
+                            <div class="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-400 {{ $customer->profile_image ? 'hidden' : '' }}" id="placeholder-icon">
+                                <i class="fa-solid fa-camera text-3xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">เปลี่ยนรูปโปรไฟล์</label>
+                        <input type="file" name="profile_image" accept="image/*" onchange="previewImage(this)"
+                               class="block w-full text-sm text-slate-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-xl file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-yellow-50 file:text-yellow-700
+                                      hover:file:bg-yellow-100 cursor-pointer border border-gray-200 rounded-xl">
+                        <p class="mt-2 text-xs text-gray-400">อัปโหลดใหม่เพื่อแทนที่รูปเดิม (รองรับ JPG, PNG ไม่เกิน 5MB)</p>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {{-- รหัสลูกค้า (แก้ไขไม่ได้) --}}
@@ -36,7 +65,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">รหัสลูกค้า</label>
                         <div class="relative">
                             <input type="text" value="{{ $customer->customer_code }}" disabled 
-                                   class="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-600 font-bold text-sm">
+                                   class="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-600 font-bold text-sm select-none cursor-not-allowed">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fa-solid fa-barcode text-gray-400"></i>
                             </div>
@@ -96,7 +125,7 @@
                         <textarea name="address" rows="2" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-3">{{ old('address', $customer->address) }}</textarea>
                     </div>
                     
-                    {{-- ✅ เพิ่มช่องตำบล และกำหนด ID --}}
+                    {{-- ตำบล --}}
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">ตำบล/แขวง</label>
                         <input type="text" id="district" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5">
@@ -143,7 +172,6 @@
 </div>
 
 @push('scripts')
-{{-- ✅ เรียกใช้ Thai Address Auto Complete --}}
 <link rel="stylesheet" href="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.css') }}">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="{{ asset('vendor/jquery.thailand/JQL.min.js') }}"></script>
@@ -151,6 +179,7 @@
 <script src="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.js') }}"></script>
 
 <script>
+    // Thai Address Auto Complete
     $.Thailand({
         database: '{{ asset("vendor/jquery.thailand/db.json") }}', 
         $district: $('#district'), // ตำบล
@@ -158,6 +187,22 @@
         $province: $('#province'), // จังหวัด
         $zipcode: $('#zipcode'),   // รหัสไปรษณีย์
     });
+
+    // Image Preview Script
+    function previewImage(input) {
+        const preview = document.getElementById('image-preview');
+        const placeholder = document.getElementById('placeholder-icon');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
 </script>
 @endpush
 

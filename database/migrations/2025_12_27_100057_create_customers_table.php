@@ -12,11 +12,21 @@ return new class extends Migration {
             $table->string('customer_code')->unique()->nullable();
             $table->string('name');
             $table->string('phone')->unique();
+            
+            // ✅ เพิ่มฟิลด์รูปโปรไฟล์
+            $table->string('profile_image')->nullable(); 
+
+            $table->string('email')->nullable();
+            $table->string('tax_id')->nullable();
+            
             $table->text('address')->nullable();
+            $table->string('province')->nullable();
+            $table->string('district')->nullable();
+            $table->string('postal_code')->nullable();
+
             $table->decimal('latitude', 10, 8)->nullable();
             $table->decimal('longitude', 11, 8)->nullable();
 
-            // ✅ แก้ตรงนี้: เพิ่ม 'company' เข้าไป
             $table->enum('customer_type', ['individual', 'farm', 'company'])->default('individual');
 
             $table->string('password');

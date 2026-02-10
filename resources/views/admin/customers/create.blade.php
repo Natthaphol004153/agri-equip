@@ -11,7 +11,6 @@
         
         {{-- Header Section --}}
         <div class="bg-gradient-to-r from-agri-primary to-green-600 px-8 py-6 flex justify-between items-center relative overflow-hidden">
-            {{-- Background Pattern Decoration --}}
             <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
             
             <div class="relative z-10 flex items-center gap-4">
@@ -30,8 +29,8 @@
             </a>
         </div>
 
-        {{-- Form Content --}}
-        <form action="{{ route('admin.customers.store') }}" method="POST" class="p-8 md:p-10">
+        {{-- Form Content: ต้องมี enctype="multipart/form-data" --}}
+        <form action="{{ route('admin.customers.store') }}" method="POST" enctype="multipart/form-data" class="p-8 md:p-10">
             @csrf
 
             {{-- ================= Section 1: ข้อมูลทั่วไป ================= --}}
@@ -43,6 +42,29 @@
                     <div>
                         <h3 class="text-gray-800 font-bold text-lg">ข้อมูลทั่วไป</h3>
                         <p class="text-gray-400 text-xs">รายละเอียดพื้นฐานและข้อมูลติดต่อ</p>
+                    </div>
+                </div>
+
+                {{-- ✅ ส่วนอัปโหลดรูปภาพ --}}
+                <div class="flex flex-col md:flex-row gap-6 mb-8 items-start">
+                    <div class="shrink-0 mx-auto md:mx-0">
+                        <div class="w-32 h-32 rounded-full bg-gray-100 border-4 border-white shadow-md flex items-center justify-center overflow-hidden relative group">
+                            <img id="image-preview" src="#" alt="Preview" class="w-full h-full object-cover hidden">
+                            <div class="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-400" id="placeholder-icon">
+                                <i class="fa-solid fa-camera text-4xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">รูปโปรไฟล์ (ถ้ามี)</label>
+                        <input type="file" name="profile_image" accept="image/*" onchange="previewImage(this)"
+                               class="block w-full text-sm text-slate-500
+                                      file:mr-4 file:py-2.5 file:px-4
+                                      file:rounded-xl file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-xl">
+                        <p class="mt-2 text-xs text-gray-400">รองรับไฟล์ JPG, PNG, JPEG ขนาดไม่เกิน 5MB</p>
                     </div>
                 </div>
                 
@@ -225,7 +247,6 @@
 </div>
 
 @push('scripts')
-{{-- ✅ เรียกใช้ Thai Address Auto Complete --}}
 <link rel="stylesheet" href="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.css') }}">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="{{ asset('vendor/jquery.thailand/JQL.min.js') }}"></script>
@@ -233,13 +254,30 @@
 <script src="{{ asset('vendor/jquery.thailand/jquery.Thailand.min.js') }}"></script>
 
 <script>
+    // Thai Address Auto Complete
     $.Thailand({
         database: '{{ asset("vendor/jquery.thailand/db.json") }}', 
-        $district: $('#district'), // ตำบล
-        $amphoe: $('#amphure'),    // อำเภอ
-        $province: $('#province'), // จังหวัด
-        $zipcode: $('#zipcode'),   // รหัสไปรษณีย์
+        $district: $('#district'),
+        $amphoe: $('#amphure'),
+        $province: $('#province'),
+        $zipcode: $('#zipcode'),
     });
+
+    // Image Preview Script
+    function previewImage(input) {
+        const preview = document.getElementById('image-preview');
+        const placeholder = document.getElementById('placeholder-icon');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
 </script>
 @endpush
 

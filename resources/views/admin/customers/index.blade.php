@@ -43,9 +43,17 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <div class="flex-shrink-0 h-10 w-10">
-                                    <div class="h-10 w-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg shadow-inner">
-                                        {{ substr($c->name, 0, 1) }}
-                                    </div>
+                                    {{-- ✅ แก้ไขตรงนี้: เพิ่มเงื่อนไขแสดงรูปภาพ --}}
+                                    @if($c->profile_image)
+                                        <img class="h-10 w-10 rounded-full object-cover border border-gray-200 shadow-sm" 
+                                             src="{{ asset('storage/' . $c->profile_image) }}" 
+                                             alt="{{ $c->name }}">
+                                    @else
+                                        {{-- ถ้าไม่มีรูป แสดงตัวอักษรย่อ --}}
+                                        <div class="h-10 w-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg shadow-inner">
+                                            {{ substr($c->name, 0, 1) }}
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="ml-4">
                                     <div class="text-sm font-bold text-gray-900 group-hover:text-agri-primary transition">{{ $c->name }}</div>

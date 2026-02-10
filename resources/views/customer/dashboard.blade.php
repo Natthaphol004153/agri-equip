@@ -3,14 +3,26 @@
 @section('content')
 <div class="space-y-6">
     
-    {{-- 1. การ์ดข้อมูลส่วนตัว (คงเดิม) --}}
+    {{-- 1. การ์ดข้อมูลส่วนตัว --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="bg-gradient-to-r from-agri-primary to-agri-secondary px-6 py-8 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
+            
             <div class="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
-                <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg text-3xl text-agri-primary font-bold border-4 border-agri-accent/30">
-                    {{ substr(Auth::guard('customer')->user()->name, 0, 1) }}
+                
+                {{-- ✅ ส่วนแสดงรูปโปรไฟล์ (แก้ไขตรงนี้) --}}
+                <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg border-4 border-agri-accent/30 overflow-hidden">
+                    @if(Auth::guard('customer')->user()->profile_image)
+                        <img src="{{ asset('storage/' . Auth::guard('customer')->user()->profile_image) }}" 
+                             alt="Profile" 
+                             class="w-full h-full object-cover">
+                    @else
+                        <span class="text-3xl text-agri-primary font-bold">
+                            {{ substr(Auth::guard('customer')->user()->name, 0, 1) }}
+                        </span>
+                    @endif
                 </div>
+
                 <div class="text-white flex-1">
                     <h2 class="text-2xl font-bold">{{ Auth::guard('customer')->user()->name }}</h2>
                     <div class="flex flex-wrap justify-center md:justify-start gap-3 mt-2 text-sm text-gray-200">
@@ -27,7 +39,7 @@
         </div>
     </div>
 
-    {{-- 2. ส่วนแสดงประวัติการจอง --}}
+    {{-- ... (ส่วนตารางประวัติการจอง เหมือนเดิมไม่ต้องแก้) ... --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -51,7 +63,7 @@
                     @if(isset($bookings) && $bookings->count() > 0)
                         @foreach($bookings as $booking)
                         <tr class="hover:bg-gray-50/50 transition duration-150">
-                            {{-- เลขที่งาน (คลิกได้) --}}
+                            {{-- เลขที่งาน --}}
                             <td class="px-6 py-4 font-medium text-agri-primary whitespace-nowrap">
                                 <a href="{{ route('customer.booking.show', $booking->id) }}" class="hover:underline hover:text-green-700">
                                     #{{ $booking->job_number }}
@@ -75,10 +87,9 @@
                                 @endif
                             </td>
                             
-                            {{-- สถานะ (รวมปุ่มจ่ายเงิน) --}}
+                            {{-- สถานะ --}}
                             <td class="px-6 py-4 text-center align-middle whitespace-nowrap">
                                 <div class="flex flex-col gap-2 items-center">
-                                    {{-- Status Label --}}
                                     @php
                                         $statusConfig = match($booking->status) {
                                             'completed' => ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'label' => 'เสร็จสิ้น'],
@@ -92,7 +103,6 @@
                                         {{ $statusConfig['label'] }}
                                     </span>
 
-                                    {{-- Payment Button --}}
                                     @if($booking->status != 'cancelled')
                                         @if($booking->payment_status == 'pending')
                                             <a href="{{ route('customer.booking.payment', $booking->id) }}" 
