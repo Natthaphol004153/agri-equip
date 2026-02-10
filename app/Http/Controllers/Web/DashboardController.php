@@ -1,5 +1,6 @@
 <?php
-namespace App\Http\Controllers\Web\Customer;
+
+namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -15,28 +16,19 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // 1. ดึง ID ลูกค้าที่ล็อกอิน
-        $customerId = Auth::guard('customer')->id();
-
-        // 2. ดึงข้อมูลการจอง (Booking) เฉพาะของลูกค้ารายนี้
-        $bookings = Booking::where('customer_id', $customerId)
-            ->with('equipment') // ดึงข้อมูลเครื่องจักรมาด้วย
-            ->latest()
-            ->get();
-        return view('customer.dashboard', compact('bookings'));
         // ------------------------------------------------------------------
         // 1. Financial Overview (การเงินภาพรวม)
         // ------------------------------------------------------------------
         $totalIncome = Booking::where('status', 'completed')->sum('total_price');
 
         // ✅ แก้ไข: เปลี่ยน cost -> total_cost
-        $maintenanceCost = MaintenanceLog::sum('total_cost');
-
-        $fuelPurchaseCost = FuelPurchase::sum('total_cost');
-
+        $maintenanceCost = MaintenanceLog::sum('total_cost'); 
+        
+        $fuelPurchaseCost = FuelPurchase::sum('total_cost'); 
+        
         $totalExpense = $maintenanceCost + $fuelPurchaseCost;
         $netProfit = $totalIncome - $totalExpense;
-
+        
         // คำนวณยอดซื้อน้ำมันเดือนนี้ (สำหรับแสดงแยก)
         $fuelCostThisMonth = FuelPurchase::whereMonth('purchase_date', Carbon::now()->month)
             ->whereYear('purchase_date', Carbon::now()->year)
@@ -48,14 +40,14 @@ class DashboardController extends Controller
         $completedJobs = Booking::where('status', 'completed')->count();
         $pendingJobs = Booking::where('status', 'completed_pending_approval')->count();
         $activeMachines = Booking::where('status', 'in_progress')->count();
-        $availableStaff = User::where('role', 'staff')->count();
+        $availableStaff = User::where('role', 'staff')->count(); 
         $fuelRequests = FuelLog::whereDate('created_at', today())->count();
 
         // ------------------------------------------------------------------
         // 3. Alerts (แจ้งเตือนด่วน)
         // ------------------------------------------------------------------
         $recentJobs = Booking::with(['customer', 'assignedStaff'])->latest()->take(5)->get();
-
+        
         // แจ้งเตือนซ่อมบำรุง (ใกล้ถึงชั่วโมงซ่อม)
         $maintenanceAlerts = Equipment::whereRaw('current_hours >= (maintenance_hour_threshold - 10)')
             ->orderByRaw('(maintenance_hour_threshold - current_hours) ASC')
@@ -83,15 +75,15 @@ class DashboardController extends Controller
 
                 return [
                     'id' => $job->id,
-                    'job_number' => $job->job_number ?? 'JOB-' . $job->id,
+                    'job_number' => $job->job_number ?? 'JOB-'.$job->id,
                     'title' => $job->customer->name,
                     'phone' => $job->customer->phone,
                     'location' => $job->customer->address ?? '-',
                     'equipment' => $job->equipment->name ?? '-',
                     'equipment_code' => $job->equipment->equipment_code ?? '',
                     'staff' => $job->assignedStaff ? $job->assignedStaff->name : 'ยังไม่ระบุช่าง',
-                    'staff_avatar' => $job->assignedStaff
-                        ? 'https://ui-avatars.com/api/?name=' . urlencode($job->assignedStaff->name) . '&background=random&color=fff&size=64'
+                    'staff_avatar' => $job->assignedStaff 
+                        ? 'https://ui-avatars.com/api/?name='.urlencode($job->assignedStaff->name).'&background=random&color=fff&size=64' 
                         : null,
                     'start_date' => $start->format('Y-m-d'),
                     'time_range' => $start->format('H:i') . ' - ' . $end->format('H:i'),
@@ -102,34 +94,13 @@ class DashboardController extends Controller
             });
 
         return view('admin.dashboard', compact(
-            'totalIncome',
-            'totalExpense',
-            'netProfit',
-            'fuelPurchaseCost',
-            'fuelCostThisMonth',
-            'maintenanceCost',
-            'completedJobs',
-            'pendingJobs',
-            'activeMachines',
-            'availableStaff',
-            'fuelRequests',
-            'recentJobs',
-            'maintenanceAlerts',
-            'calendarBookings'
+            'totalIncome', 'totalExpense', 'netProfit', 'fuelPurchaseCost', 'fuelCostThisMonth',
+            'maintenanceCost', 
+            'completedJobs', 'pendingJobs', 'activeMachines', 'availableStaff', 'fuelRequests',
+            'recentJobs', 'maintenanceAlerts', 'calendarBookings'
         ));
-
     }
-    // หน้าดูรายละเอียดการจอง (Booking Details)
-    public function show($id)
-    {
-        // ดึงข้อมูลการจอง โดยต้องเป็นของลูกค้าคนนี้เท่านั้น (เพื่อความปลอดภัย)
-        $booking = Booking::where('id', $id)
-            ->where('customer_id', Auth::guard('customer')->id())
-            ->with(['equipment', 'assignedStaff', 'activities'])
-            ->firstOrFail();
 
-        return view('customer.booking.show', compact('booking'));
-    }
     public function getFinancialData(Request $request)
     {
         $start = Carbon::parse($request->start_date)->startOfDay();
@@ -169,9 +140,7 @@ class DashboardController extends Controller
         $incomeData = [];
         $costData = [];
         $hourData = [];
-        $sumIncome = 0;
-        $sumCost = 0;
-        $sumHours = 0;
+        $sumIncome = 0; $sumCost = 0; $sumHours = 0;
 
         $current = $start->copy();
         while ($current <= $end) {
@@ -180,9 +149,9 @@ class DashboardController extends Controller
             $fc = $fuelCosts[$dateKey] ?? 0;
             $mc = $maintCosts[$dateKey] ?? 0;
             $hr = $hours[$dateKey] ?? 0;
-
+            
             $totalC = $fc + $mc;
-
+            
             $incomeData[] = $inc;
             $costData[] = $totalC;
             $hourData[] = $hr;
@@ -214,8 +183,8 @@ class DashboardController extends Controller
                 'total_cost' => $sumCost,
                 'net_profit' => $sumIncome - $sumCost,
                 'total_hours' => $sumHours,
-                'total_maintenance' => $summaryMaintenance,
-                'total_fuel' => $summaryFuel
+                'total_maintenance' => $summaryMaintenance, 
+                'total_fuel' => $summaryFuel 
             ]
         ]);
     }

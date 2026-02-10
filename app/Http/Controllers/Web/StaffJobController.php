@@ -144,66 +144,93 @@ class StaffJobController extends Controller
 
         $balance = $job->total_price - $job->deposit_amount;
 
-        $request->validate([
-            'job_image' => 'required|image|max:10240', // รูปหน้างาน
-            'payment_method' => 'required|in:transfer,cash',
-            'payment_proof' => ($balance > 0 && $request->payment_method == 'transfer') ? 'required|image|max:10240' : 'nullable|image|max:10240', // สลิป (ถ้ามี)
+        // 1. 🔍 เช็คสถานะก่อน: จ่ายหรือยัง?
+        // (รวมถึงกรณีรอยืนยันสลิป หรือจ่ายมัดจำเต็มจำนวนแล้ว)
+        $isAlreadyPaid = in_array($job->payment_status, ['paid', 'pending_approval']) || 
+                         ($job->payment_status == 'deposit_paid' && $balance <= 0);
+
+        // 2. 🛡️ กำหนด Validation Rules แบบ Dynamic
+        $rules = [
+            'job_image' => 'required|image|max:10240', // รูปผลงาน (บังคับเสมอ)
             'note' => 'nullable|string',
-        ]);
+        ];
+
+        // ถ้า "ยังไม่จ่าย" และ "มียอดค้าง" -> ต้องระบุวิธีจ่าย
+        if (!$isAlreadyPaid && $balance > 0) {
+            $rules['payment_method'] = 'required|in:transfer,cash';
+            
+            // ถ้าเลือก "โอนจ่าย" -> ต้องแนบสลิป
+            if ($request->payment_method == 'transfer') {
+                $rules['payment_proof'] = 'required|image|max:10240';
+            }
+        }
+
+        $request->validate($rules);
 
         $transRef = null;
+        $paymentStatus = $job->payment_status; // ค่าเริ่มต้น (ถ้าจ่ายแล้วก็ใช้ค่าเดิม)
 
-        // --- ขั้นตอนตรวจสอบสลิป (เฉพาะกรณียอดคงเหลือ > 0 และเลือกโอนเงิน) ---
-        if ($balance > 0 && $request->payment_method == 'transfer' && $request->hasFile('payment_proof')) {
+        // 3. 💸 ตรวจสอบการชำระเงิน (เฉพาะกรณีที่ต้องจ่ายเพิ่ม)
+        if (!$isAlreadyPaid && $balance > 0) {
             
-            Log::info("Payment Verification: Verifying Slip with EasySlip...");
+            // กรณี A: จ่ายเงินสด (Cash) -> จบเลย รับเงินกับมือ
+            if ($request->payment_method == 'cash') {
+                $paymentStatus = 'paid';
+            } 
+            // กรณี B: โอนจ่าย (Transfer) -> ตรวจสอบสลิป
+            elseif ($request->payment_method == 'transfer' && $request->hasFile('payment_proof')) {
+                
+                Log::info("Payment Verification: Verifying Slip with EasySlip...");
+                
+                // เรียกใช้ EasySlip SDK
+                $sdk = new EasySlipSDK();
+                $imageFile = $request->file('payment_proof');
+                $result = $sdk->verify($imageFile);
 
-            $sdk = new EasySlipSDK();
-            $imageFile = $request->file('payment_proof');
-            $result = $sdk->verify($imageFile);
+                Log::info("Payment Verification Result", $result); 
 
-            Log::info("Payment Verification Result", $result); 
+                // ⚠️ Case 1: API ตรวจสอบไม่ได้
+                if (!$result['success']) {
+                    $errorMsg = '⚠️ ตรวจสอบสลิปไม่สำเร็จ: ' . ($result['message'] ?? 'Unknown Error');
+                    if ($request->ajax()) return response()->json(['success' => false, 'message' => $errorMsg]);
+                    return back()->with('error', $errorMsg);
+                }
 
-            // ⚠️ Case 1: API ตรวจสอบไม่ผ่าน หรืออ่านค่าไม่ได้
-            if (!$result['success']) {
-                $errorMsg = '⚠️ ไม่สามารถตรวจสอบความถูกต้องของสลิปได้: ' . ($result['message'] ?? 'Unknown Error');
-                if ($request->ajax()) return response()->json(['success' => false, 'message' => $errorMsg]);
-                return back()->with('error', $errorMsg);
-            }
+                $slipData = $result['data'];
+                $slipAmount = $slipData['amount'];
+                $transRef = $slipData['ref'] ?? null;
 
-            $slipData = $result['data'];
-            $slipAmount = $slipData['amount'];
-            $transRef = $slipData['ref'] ?? null;
+                // ⛔ Case 2: ตรวจสอบสลิปซ้ำ (ป้องกันโกง)
+                if ($transRef) {
+                    $isDuplicate = Booking::where('payment_trans_ref', $transRef)
+                        ->where('id', '!=', $id)
+                        ->exists();
 
-            // ⛔ Case 2: ตรวจสอบสลิปซ้ำ (Duplicate Check)
-            if ($transRef) {
-                $isDuplicate = Booking::where('payment_trans_ref', $transRef)
-                    ->where('id', '!=', $id)
-                    ->exists();
+                    if ($isDuplicate) {
+                        $errorMsg = "⛔ สลิปนี้ถูกใช้ไปแล้ว (Ref: {$transRef})";
+                        Log::warning("Fraud Alert: Duplicate Slip", ['user' => Auth::id(), 'ref' => $transRef]);
+                        
+                        if ($request->ajax()) return response()->json(['success' => false, 'message' => $errorMsg]);
+                        return back()->with('error', $errorMsg);
+                    }
+                }
 
-                if ($isDuplicate) {
-                    $errorMsg = "⛔ รายการนี้เคยถูกบันทึกในระบบแล้ว (Duplicate Transaction: {$transRef})";
-                    Log::warning("Fraud Alert: Duplicate Slip Attempt", ['user' => Auth::id(), 'ref' => $transRef]);
+                // ⚠️ Case 3: ยอดเงินไม่ครบ
+                if ($slipAmount < $balance) {
+                    $errorMsg = "⚠️ ยอดโอนไม่ครบ (โอนมา: " . number_format($slipAmount, 2) . " / ต้องจ่าย: " . number_format($balance, 2) . ")";
                     
                     if ($request->ajax()) return response()->json(['success' => false, 'message' => $errorMsg]);
                     return back()->with('error', $errorMsg);
                 }
-            }
 
-            // ⚠️ Case 3: ยอดเงินไม่ครบ
-            if ($slipAmount < $balance) {
-                $errorMsg = "⚠️ ยอดโอนไม่ครบตามจำนวน (Received: " . number_format($slipAmount, 2) . " / Required: " . number_format($balance, 2) . ")";
-                Log::warning("Payment Mismatch", ['slip' => $slipAmount, 'required' => $balance]);
-                
-                if ($request->ajax()) return response()->json(['success' => false, 'message' => $errorMsg]);
-                return back()->with('error', $errorMsg);
+                // ✅ ถ้าผ่านทุกด่าน -> ถือว่าจ่ายแล้ว (Verified)
+                $paymentStatus = 'paid'; 
+                Log::info("Payment Verified: Amount {$slipAmount}, Ref {$transRef}");
             }
-            
-            Log::info("Payment Verified: Amount {$slipAmount}, Ref {$transRef}");
         }
 
-        // --- Upload Files ---
-        $paymentProofPath = null;
+        // 4. 📂 อัปโหลดไฟล์
+        $paymentProofPath = $job->payment_proof; // ใช้ของเดิมถ้ามี
         if ($request->hasFile('payment_proof')) {
             $paymentProofPath = $request->file('payment_proof')->store('payments', 'public');
         }
@@ -213,38 +240,42 @@ class StaffJobController extends Controller
             $imagePath = $request->file('job_image')->store('job_evidence', 'public');
         }
 
+        // 5. 💾 อัปเดตข้อมูลลงฐานข้อมูล
         $endTime = Carbon::now();
-
-        // --- Update Database ---
+        
         $updateData = [
-            'status' => 'completed_pending_approval',
+            'status' => 'completed_pending_approval', // สถานะงาน: เสร็จแล้ว (รอแอดมินปิดจ็อบ)
             'actual_end' => $endTime,
             'image_path' => $imagePath,
-            'payment_proof' => $paymentProofPath,
-            'payment_method' => $request->payment_method, // บันทึกวิธีจ่าย
-            'payment_trans_ref' => $transRef,
             'note' => $request->note,
         ];
 
-        // 🔥 ถ้าจ่ายครบ (ไม่ว่าจะโอนหรือเงินสด) ปรับสถานะเป็น Paid เลย
-        if ($balance > 0) {
-            $updateData['payment_status'] = 'paid'; 
+        // อัปเดตข้อมูลการเงินเฉพาะเมื่อมีการจ่ายใหม่
+        if (!$isAlreadyPaid && $balance > 0) {
+            $updateData['payment_status'] = $paymentStatus; // paid หรือ pending_approval
+            $updateData['payment_method'] = $request->payment_method;
+            $updateData['payment_proof'] = $paymentProofPath;
+            $updateData['payment_trans_ref'] = $transRef;
         }
 
         $job->update($updateData);
 
-        // ✅ ส่งแจ้งเตือน Line: จบงาน
+        // 6. 🔔 ส่งแจ้งเตือน Line
         try {
+            $paymentText = $isAlreadyPaid ? "ชำระแล้ว (ก่อนหน้า)" : ($request->payment_method == 'cash' ? "เงินสด (รับหน้างาน)" : "โอนเงิน (ตรวจสอบแล้ว)");
+            
             $lineMsg = "✅ [JOB COMPLETED]\n" .
                        "------------------------\n" .
                        "📋 Job No: {$job->job_number}\n" .
                        "👤 Staff: " . Auth::user()->name . "\n" .
                        "🏁 End Time: " . $endTime->format('H:i') . "\n" .
-                       "💰 Payment: " . ($balance > 0 ? "Verified (Slip)" : "Paid/None") . "\n" .
+                       "💰 Payment: {$paymentText}\n" .
                        "------------------------\n" .
                        "สถานะ: ปฏิบัติงานเสร็จสิ้น รออนุมัติ";
             LineMessagingApi::send($lineMsg);
-        } catch (\Exception $e) { }
+        } catch (\Exception $e) { 
+            Log::error("Line Notification Error: " . $e->getMessage());
+        }
 
         if ($request->ajax()) {
             return response()->json([

@@ -6,10 +6,8 @@
 @section('content')
 <div class="max-w-2xl mx-auto space-y-4 pb-24" x-data="{ reportModal: false, finishModal: false, isSubmitting: false }">
 
-    {{-- ... (ส่วนแสดงผล Status, Customer, Machine Info คงเดิม) ... --}}
-    {{-- (ผมขอละส่วนบนไว้เพื่อประหยัดพื้นที่ คุณใช้โค้ดเดิมได้เลยครับ) --}}
+    {{-- 1. Status Card --}}
     <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
-        {{-- ... เนื้อหา Status Card เดิม ... --}}
         <div class="absolute top-0 right-0 p-4 opacity-10">
             <i class="fa-solid fa-clipboard-list text-6xl text-gray-400"></i>
         </div>
@@ -28,6 +26,7 @@
         <p class="text-sm text-gray-500 flex items-center gap-2"><i class="fa-regular fa-calendar text-agri-primary"></i> นัดหมาย: <span class="font-medium text-gray-700">{{ \Carbon\Carbon::parse($job->scheduled_start)->format('d/m/Y H:i') }} น.</span></p>
     </div>
 
+    {{-- 2. Customer Info --}}
     <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i class="fa-solid fa-user"></i> ข้อมูลลูกค้า</h4>
         <div class="flex items-start gap-4 mb-4">
@@ -46,6 +45,7 @@
         </div>
     </div>
 
+    {{-- 3. Machine Info --}}
     <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
         <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i class="fa-solid fa-tractor"></i> เครื่องจักร</h4>
         <div class="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -88,8 +88,8 @@
 
     <div class="hidden lg:block"></div>
 
-    {{-- MODAL: แจ้งปัญหา (คงเดิม) --}}
-    <div x-show="reportModal" class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="display: none;">
+    {{-- MODAL: แจ้งปัญหา --}}
+    <div x-show="reportModal" class="relative z-50" style="display: none;">
         <div class="fixed inset-0 bg-gray-900/75 transition-opacity backdrop-blur-sm"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -109,12 +109,24 @@
         </div>
     </div>
 
-    {{-- 🔥 MODAL: จบงาน (Smart Offline) --}}
-    <div x-show="finishModal" class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true" style="display: none;">
+    {{-- 🔥 MODAL: จบงาน (Smart Payment Logic) --}}
+    <div x-show="finishModal" class="relative z-50" style="display: none;">
         <div class="fixed inset-0 bg-gray-900/75 transition-opacity backdrop-blur-sm"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg w-full" @click.away="finishModal = false">
+                
+                {{-- Alpine Logic: เช็คว่าจ่ายหรือยัง --}}
+                @php
+                    $isAlreadyPaid = in_array($job->payment_status, ['paid', 'pending_approval']) || 
+                                     ($job->payment_status == 'deposit_paid' && $balance <= 0);
+                @endphp
+
+                <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg w-full" 
+                     @click.away="finishModal = false"
+                     x-data="{ 
+                        paymentMethod: 'transfer', 
+                        isPaid: {{ $isAlreadyPaid ? 'true' : 'false' }} 
+                     }">
                     
                     <div class="bg-green-600 px-4 py-4 flex justify-between items-center text-white">
                         <h3 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-flag-checkered"></i> สรุปจบงาน</h3>
@@ -123,54 +135,90 @@
 
                     <form action="{{ route('staff.jobs.finish', $job->id) }}" method="POST" enctype="multipart/form-data" class="p-6" @submit="isSubmitting = true">
                         @csrf
-                        <div class="space-y-5">
-                            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div class="flex justify-between text-sm mb-1 text-gray-500"><span>ยอดรวม:</span> <span>{{ number_format($job->total_price) }}</span></div>
-                                <div class="flex justify-between text-sm mb-1 text-red-500"><span>หักมัดจำ:</span> <span>-{{ number_format($job->deposit_amount) }}</span></div>
-                                <div class="flex justify-between text-lg font-bold text-green-700 border-t border-gray-200 pt-2 mt-2">
-                                    <span>ต้องชำระเพิ่ม:</span> <span>{{ number_format($balance) }} ฿</span>
-                                </div>
-                            </div>
-
-                            @if($balance > 0 && $qrData)
-                                <div class="text-center">
-                                    <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl={{ $qrData }}&choe=UTF-8" class="mx-auto border p-1 rounded-lg">
-                                    <p class="text-xs text-gray-500 mt-1">สแกนเพื่อชำระเงิน</p>
-                                </div>
-                            @endif
-
-                            {{-- 🔥 ALERT: แจ้งเตือน (เพิ่มใหม่) --}}
-                            @if($balance > 0)
-                            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg flex gap-3">
-                                <div class="flex-shrink-0 text-yellow-500 py-1"><i class="fa-solid fa-circle-exclamation"></i></div>
-                                <div class="text-sm text-yellow-800">
-                                    <strong>สำคัญ:</strong> กรุณาตรวจสอบยอดเงินในแอปธนาคารให้ถูกต้องก่อนแนบสลิป ระบบจะตรวจสอบเฉพาะสลิปซ้ำเท่านั้น
-                                </div>
-                            </div>
-                            @endif
-
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">📸 รูปผลงาน (บังคับ) *</label>
-                                    <input type="file" name="job_image" required accept="image/*" capture="environment" class="block w-full text-sm text-gray-500 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-                                </div>
-                                @if($balance > 0)
-                                <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">💸 สลิปโอนเงิน (บังคับ) *</label>
-                                    <input type="file" name="payment_proof" required accept="image/*" class="block w-full text-sm text-gray-500 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
-                                </div>
-                                @endif
-                                <div>
-                                    <textarea name="note" rows="2" class="w-full rounded-xl border-gray-300 p-3" placeholder="หมายเหตุเพิ่มเติม..."></textarea>
-                                </div>
+                        
+                        {{-- 1. ยอดเงินคงเหลือ --}}
+                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-5">
+                            <div class="flex justify-between text-sm mb-1 text-gray-500"><span>ยอดรวม:</span> <span>{{ number_format($job->total_price) }}</span></div>
+                            <div class="flex justify-between text-sm mb-1 text-red-500"><span>หักมัดจำ:</span> <span>-{{ number_format($job->deposit_amount) }}</span></div>
+                            <div class="flex justify-between text-lg font-bold text-green-700 border-t border-gray-200 pt-2 mt-2">
+                                <span>ต้องชำระเพิ่ม:</span> <span>{{ number_format($balance) }} ฿</span>
                             </div>
                         </div>
+
+                        {{-- 2. กรณีจ่ายแล้ว --}}
+                        <template x-if="isPaid">
+                            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg mb-5 flex gap-3">
+                                <div class="text-green-500 text-xl"><i class="fa-solid fa-circle-check"></i></div>
+                                <div>
+                                    <h4 class="font-bold text-green-800 text-sm">ลูกค้าชำระเงินแล้ว</h4>
+                                    <p class="text-xs text-green-600 mt-1">ไม่ต้องเก็บเงินเพิ่ม สามารถบันทึกจบงานได้เลย</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- 3. กรณีต้องเก็บเงินหน้างาน --}}
+                        <template x-if="!isPaid && {{ $balance }} > 0">
+                            <div class="space-y-5 mb-5">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">วิธีชำระเงิน</label>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="payment_method" value="transfer" class="peer sr-only" x-model="paymentMethod">
+                                            <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-green-500 peer-checked:bg-green-50 transition hover:bg-gray-50">
+                                                <i class="fa-solid fa-qrcode text-xl mb-1 text-gray-500 peer-checked:text-green-600"></i>
+                                                <div class="text-sm font-bold text-gray-600 peer-checked:text-green-700">โอนจ่าย</div>
+                                            </div>
+                                        </label>
+                                        <label class="cursor-pointer">
+                                            <input type="radio" name="payment_method" value="cash" class="peer sr-only" x-model="paymentMethod">
+                                            <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-blue-500 peer-checked:bg-blue-50 transition hover:bg-gray-50">
+                                                <i class="fa-solid fa-money-bill-wave text-xl mb-1 text-gray-500 peer-checked:text-blue-600"></i>
+                                                <div class="text-sm font-bold text-gray-600 peer-checked:text-blue-700">เงินสด</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {{-- โอนจ่าย --}}
+                                <div x-show="paymentMethod === 'transfer'" class="animate-fade-in-up">
+                                    @if($qrData)
+                                        <div class="text-center mb-4">
+                                            <img src="https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl={{ $qrData }}&choe=UTF-8" class="mx-auto border p-1 rounded-lg w-32 h-32">
+                                            <p class="text-xs text-gray-500 mt-1">พร้อมเพย์</p>
+                                        </div>
+                                    @endif
+                                    <div>
+                                        <label class="block text-sm font-bold text-gray-700 mb-1">💸 สลิปโอนเงิน *</label>
+                                        <input type="file" name="payment_proof" accept="image/*" class="block w-full text-sm text-gray-500 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer">
+                                    </div>
+                                </div>
+
+                                {{-- เงินสด --}}
+                                <div x-show="paymentMethod === 'cash'" class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center animate-fade-in-up">
+                                    <div class="text-blue-600 text-2xl mb-2"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                                    <p class="text-sm font-bold text-blue-800">กรุณาเก็บเงินสดจากลูกค้า</p>
+                                    <p class="text-xl font-bold text-blue-900 mt-1">{{ number_format($balance) }} บาท</p>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- 4. รูปผลงาน (บังคับ) --}}
+                        <div class="space-y-3 pt-4 border-t border-gray-100">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">📸 รูปผลงานจบงาน (บังคับ) *</label>
+                                <input type="file" name="job_image" required accept="image/*" capture="environment" class="block w-full text-sm text-gray-500 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer">
+                            </div>
+                            <div>
+                                <textarea name="note" rows="2" class="w-full rounded-xl border-gray-300 p-3 shadow-sm focus:border-green-500 focus:ring-green-500" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)..."></textarea>
+                            </div>
+                        </div>
+
                         <div class="mt-6">
                             <button type="submit" 
-                                class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
                                 :disabled="isSubmitting">
                                 <span x-show="!isSubmitting">ยืนยันจบงาน</span>
-                                <span x-show="isSubmitting"><i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...</span>
+                                <span x-show="isSubmitting" class="flex items-center justify-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...</span>
                             </button>
                         </div>
                     </form>

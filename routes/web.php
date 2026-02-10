@@ -51,13 +51,16 @@ Route::prefix('customer')->name('customer.')->group(function () {
     // 2. ส่วนที่ Login แล้ว (Authenticated Customer)
     Route::middleware('auth:customer')->group(function () {
         
-        // ✅ หน้า Dashboard (แสดงประวัติ)
+        // Dashboard
         Route::get('dashboard', [CustomerDashboardController::class, 'index'])->name('dashboard');
         
-        // ✅ หน้าดูรายละเอียดงาน (Booking Detail)
+        // รายละเอียด
         Route::get('booking/{id}', [CustomerDashboardController::class, 'show'])->name('booking.show');
         
-        // ออกจากระบบ
+        // ✅ จ่ายเงิน
+        Route::get('booking/{id}/payment', [CustomerDashboardController::class, 'payment'])->name('booking.payment');
+        Route::post('booking/{id}/payment', [CustomerDashboardController::class, 'uploadSlip'])->name('booking.upload_slip');
+        // Logout
         Route::post('logout', [CustomerAuthController::class, 'logout'])->name('logout');
     });
 });
