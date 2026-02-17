@@ -25,8 +25,13 @@ use App\Http\Controllers\Web\Customer\DashboardController as CustomerDashboardCo
 | 🌍 PUBLIC ZONE (หน้าแรกสำหรับทุกคน)
 |--------------------------------------------------------------------------
 */
-// หน้าแรก (Landing Page) แสดงรายการรถและตารางงาน
-Route::get('/', [PublicController::class, 'index'])->name('home');
+// ❌ พับหน้าแรกเดิมไว้ก่อน (Landing Page)
+// Route::get('/', [PublicController::class, 'index'])->name('home');
+
+// ✅ ให้หน้าแรก Redirect ไปหน้า Admin Login เลย
+Route::get('/', function () {
+    return redirect()->route('login');
+})->name('home');
 
 // API สำหรับดึงข้อมูลปฏิทิน (ใช้โดย FullCalendar)
 Route::get('/api/public-calendar', [PublicController::class, 'getCalendarEvents'])->name('public.calendar');
@@ -40,6 +45,7 @@ Route::get('/api/public-calendar', [PublicController::class, 'getCalendarEvents'
 Route::middleware('guest')->group(function () {
 
     // 👮‍♂️ Admin Login (ย้ายมาที่ /admin/login)
+    // หมายเหตุ: route('login') จะวิ่งมาที่นี่
     Route::get('/admin/login', [AuthController::class, 'loginForm'])->name('login');
     Route::post('/admin/login', [AuthController::class, 'login'])->name('login.submit');
 
@@ -53,6 +59,7 @@ Route::middleware('guest')->group(function () {
 | 🛒 CUSTOMER ZONE (ส่วนของลูกค้า)
 |--------------------------------------------------------------------------
 */
+// ส่วนนี้เปิดใช้งานอยู่แล้ว เข้าผ่าน /customer/login ได้เลยครับ
 Route::prefix('customer')->name('customer.')->group(function () {
 
     // 1. ส่วนที่ยังไม่ได้ Login

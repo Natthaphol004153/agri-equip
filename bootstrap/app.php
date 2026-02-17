@@ -8,16 +8,18 @@ use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
-        commands: __DIR__.'/../routes/console.php',
+        web: __DIR__ . '/../routes/web.php',
+        api: __DIR__ . '/../routes/api.php',
+        commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        
+
         // ✅ 1. ลงทะเบียนชื่อ 'admin' ตรงนี้ (สำคัญมาก!)
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
+            // เพิ่มบรรทัดนี้ลงไปครับ เพื่อให้ Laravel รู้จัก Proxy ของ Cloudflare
+            $middleware->trustProxies(at: '*'),
         ]);
 
         // ✅ 2. ตั้งค่า Redirect (กันหน้า Login วนลูป)
@@ -32,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             return route('login');
         });
+
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
     })
     ->withExceptions(function (Exceptions $exceptions) {

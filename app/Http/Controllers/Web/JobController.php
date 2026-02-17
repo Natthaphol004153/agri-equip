@@ -140,37 +140,48 @@ class JobController extends Controller
     {
         $job = Booking::findOrFail($id);
 
-        // กรณี 1: แก้ไขแค่คนขับ (Quick Assign Modal)
+        // กรณี 1: Quick Assign (มอบหมายงานแบบเร็ว)
         if ($request->ajax() && $request->has('assigned_staff_id')) {
             $job->update(['assigned_staff_id' => $request->assigned_staff_id]);
             return response()->json(['success' => true, 'message' => 'มอบหมายงานสำเร็จ']);
         }
 
-        // กรณี 2: แก้ไขข้อมูลทั่วไป (Full Edit Form)
-        // ✅ ปรับ Validation ให้ยืดหยุ่นขึ้น (nullable)
+        // กรณี 2: แก้ไขข้อมูลเต็มรูปแบบ (Full Edit)
         $request->validate([
             'status' => 'required',
-            'total_price' => 'nullable|numeric|min:0',    // แอดมินมากรอกทีหลังได้
-            'deposit_amount' => 'nullable|numeric|min:0', // แอดมินมากรอกทีหลังได้
-            'assigned_staff_id' => 'nullable|exists:users,id',
-            // ข้อมูลอื่นๆ ถ้าต้องการให้แก้ได้
-            // 'scheduled_start' => 'required|date',
-            // 'scheduled_end' => 'required|date',
+            'total_price' => 'nullable|numeric|min:0',
+            'deposit_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|in:transfer,cash', // ✅ เพิ่ม: รองรับเงินสด/โอน
+            'payment_proof' => 'nullable|image|max:5120',    // ✅ เพิ่ม: รองรับรูปสลิป
         ]);
 
-        // ✅ อัปเดตข้อมูล (รวมถึงราคาและมัดจำ)
-        $job->update([
+        // เตรียมข้อมูลที่จะอัปเดต
+        $updateData = [
             'status' => $request->status,
             'total_price' => $request->total_price ?? $job->total_price,
             'deposit_amount' => $request->deposit_amount ?? $job->deposit_amount,
             'assigned_staff_id' => $request->assigned_staff_id,
             'note' => $request->note,
-            // ถ้ามีการแก้วันที่ในฟอร์มด้วย ให้ uncomment ด้านล่าง
-            // 'scheduled_start' => $request->scheduled_start,
-            // 'scheduled_end' => $request->scheduled_end,
-        ]);
+            'payment_method' => $request->payment_method, // ✅ บันทึกวิธีชำระเงิน
+        ];
 
-        return redirect()->route('admin.jobs.index')->with('success', 'บันทึกข้อมูลงานและราคาเรียบร้อยแล้ว');
+        // 🟢 ถ้ามีการแนบสลิปใหม่ (กรณีโอนเงิน)
+        if ($request->hasFile('payment_proof')) {
+            $updateData['payment_proof'] = $request->file('payment_proof')->store('payments', 'public');
+            $updateData['payment_method'] = 'transfer'; // บังคับเป็นโอน
+        }
+
+        // 🟢 Logic การปิดงาน (ถ้าสถานะ = เสร็จสิ้น)
+        if ($request->status == 'completed') {
+            // ถ้าแอดมินเลือกจ่ายแบบ "เงินสด" หรือ "โอนและมีสลิปแล้ว" -> ถือว่าจ่ายครบแล้ว
+            if ($request->payment_method == 'cash' || $job->payment_proof || $request->hasFile('payment_proof')) {
+                $updateData['payment_status'] = 'paid'; // ✅ ปรับสถานะการเงินเป็น "จ่ายแล้ว"
+            }
+        }
+
+        $job->update($updateData);
+
+        return redirect()->route('admin.jobs.index')->with('success', 'บันทึกข้อมูลงานเรียบร้อยแล้ว');
     }
 
     /*

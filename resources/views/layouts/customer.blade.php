@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>Customer Dashboard - AgriTech Management</title>
     
     {{-- 1. Fonts & Icons (โหลด CSS ก่อน) --}}

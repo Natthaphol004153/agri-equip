@@ -10,11 +10,27 @@
 
             {{-- 🟢 LEFT: Form --}}
             <div class="lg:col-span-7">
-                {{-- 🔥 แก้ไข: เพิ่ม enctype="multipart/form-data" เพื่อให้ส่งไฟล์รูปได้ --}}
                 <form action="{{ route('admin.jobs.store') }}" method="POST" enctype="multipart/form-data"
                     class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 relative overflow-hidden">
                     @csrf
                     <div class="absolute top-0 left-0 w-full h-1 bg-agri-primary"></div>
+
+                    @if (session('error'))
+                        <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {{ session('error') }}
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            <div class="font-bold mb-2">กรุณาตรวจสอบข้อมูลอีกครั้ง</div>
+                            <ul class="list-disc pl-5 space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
 
                     <h3 class="font-bold text-gray-800 text-lg mb-6 flex items-center gap-2">
                         <span
@@ -24,24 +40,29 @@
 
                     {{-- ลูกค้า --}}
                     <div class="mb-5">
-    <label class="block text-sm font-medium text-gray-700 mb-1.5">ลูกค้า (Customer) <span class="text-red-500">*</span></label>
-    <div class="flex gap-2">
-        <div class="relative w-full">
-            {{-- 1. ใส่ ID ให้ select เพื่อไว้อ้างอิง --}}
-            <select id="customer_select" name="customer_id" class="w-full" required placeholder="ค้นหา หรือ เลือกรายชื่อ...">
-                <option value="">-- เลือกลูกค้า --</option>
-                @foreach ($customers as $customer)
-                    <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                        {{ $customer->name }} ({{ $customer->phone }})
-                    </option>
-                @endforeach
-            </select>
-        </div>
-        <a href="{{ route('admin.customers.create') }}" class="shrink-0 w-11 h-11 flex items-center justify-center bg-green-50 text-agri-primary rounded-xl border border-green-100 hover:bg-agri-primary hover:text-white transition" title="เพิ่มลูกค้าใหม่">
-            <i class="fa-solid fa-plus"></i>
-        </a>
-    </div>
-</div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1.5">ลูกค้า (Customer) <span
+                                class="text-red-500">*</span></label>
+                        <div class="flex gap-2">
+                            <div class="relative w-full">
+                                <select id="customer_select" name="customer_id" class="w-full" required
+                                    placeholder="ค้นหา หรือ เลือกรายชื่อ...">
+                                    <option value="">-- เลือกลูกค้า --</option>
+                                    @foreach ($customers as $customer)
+                                        <option value="{{ $customer->id }}"
+                                            {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
+                                            {{ $customer->name }} ({{ $customer->phone }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <a href="{{ route('admin.customers.create') }}"
+                                class="shrink-0 w-11 h-11 flex items-center justify-center bg-green-50 text-agri-primary rounded-xl border border-green-100 hover:bg-agri-primary hover:text-white transition"
+                                title="เพิ่มลูกค้าใหม่">
+                                <i class="fa-solid fa-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
                         {{-- เครื่องจักร --}}
                         <div>
@@ -56,7 +77,8 @@
                                     @foreach ($equipments as $eq)
                                         <option value="{{ $eq->id }}"
                                             {{ old('equipment_id') == $eq->id ? 'selected' : '' }}>
-                                            {{ $eq->name }} ({{ $eq->registration_number ?? $eq->equipment_code }})
+                                            {{ $eq->name }}
+                                            ({{ $eq->registration_number ?? $eq->equipment_code }})
                                         </option>
                                     @endforeach
                                 </select>
@@ -108,7 +130,7 @@
                         </div>
                     </div>
 
-                    {{-- 🔥 ส่วนการเงินและมัดจำ (Alpine.js) --}}
+                    {{-- ส่วนการเงินและมัดจำ (Alpine.js) --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8" x-data="{ method: 'transfer' }">
                         {{-- 1. ราคาประเมินรวม --}}
                         <div>
@@ -209,8 +231,38 @@
     {{-- Alpine.js for interactivity --}}
     <script src="//unpkg.com/alpinejs" defer></script>
 
+    {{-- ✅ 1. เพิ่ม SweetAlert2 CDN --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+
+            // ✅ 2. เพิ่มส่วนตรวจสอบ Session Success เพื่อแสดง SweetAlert
+            @if (session('success'))
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ!',
+                    text: "{{ session('success') }}",
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true,
+                    background: '#fff',
+                    color: '#333'
+                });
+            @endif
+            @if (session('error'))
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด!',
+                    text: "{{ session('error') }}",
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'ตกลง',
+                    customClass: {
+                        popup: 'rounded-2xl font-sans'
+                    }
+                });
+            @endif
+
             const dateInput = document.getElementById('scheduled_start');
             const equipmentSelect = document.getElementById('equipment_select');
 
@@ -299,19 +351,14 @@
             background: transparent;
         }
 
-        /* ปรับแต่งให้กล่องมันโค้งมนเหมือนอันอื่น */
         .ts-control {
             border-radius: 0.75rem !important;
-            /* rounded-xl */
             padding: 0.625rem 1rem !important;
-            /* py-2.5 px-4 */
             border-color: #e5e7eb !important;
-            /* border-gray-200 */
         }
 
         .ts-wrapper.focus .ts-control {
             border-color: #1B4D3E !important;
-            /* agri-primary */
             box-shadow: 0 0 0 2px rgba(27, 77, 62, 0.2) !important;
         }
     </style>

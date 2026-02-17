@@ -1,3 +1,4 @@
+<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
 @extends('layouts.admin') {{-- 🔴 ตรวจสอบว่าไฟล์ Layout หลักคุณชื่อ admin.blade.php หรือไม่ --}}
 
 @section('title', 'Dashboard Overview')

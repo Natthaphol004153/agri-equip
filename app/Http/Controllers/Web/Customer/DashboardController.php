@@ -26,9 +26,9 @@ class DashboardController extends Controller
 
         // ดึงรายการจองล่าสุด
         $bookings = Booking::where('customer_id', $customerId)
-                            ->with('equipment') 
-                            ->latest()
-                            ->get();
+            ->with('equipment')
+            ->latest()
+            ->get();
 
         return view('customer.dashboard', compact('bookings'));
     }
@@ -38,7 +38,7 @@ class DashboardController extends Controller
     {
         $booking = Booking::where('id', $id)
             ->where('customer_id', Auth::guard('customer')->id())
-            ->with(['equipment', 'assignedStaff', 'activities']) 
+            ->with(['equipment', 'assignedStaff', 'activities'])
             ->firstOrFail();
 
         return view('customer.booking.show', compact('booking'));
@@ -53,7 +53,7 @@ class DashboardController extends Controller
     {
         // ดึงเครื่องจักรที่สถานะพร้อมใช้งาน (Available)
         $equipments = Equipment::where('current_status', 'available')->get();
-        
+
         // รับค่าวันที่ที่ส่งมาจากหน้าปฏิทิน (ถ้ามี)
         $selectedDate = $request->query('date');
 
@@ -61,7 +61,7 @@ class DashboardController extends Controller
     }
 
     // 2. บันทึกข้อมูลการจอง
-   public function store(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
             'equipment_id' => 'required|exists:equipment,id',
@@ -72,20 +72,16 @@ class DashboardController extends Controller
         ]);
 
         $equipment = Equipment::findOrFail($request->equipment_id);
-        
+
         $start = Carbon::parse($request->start_date . ' ' . $request->start_time);
         $end = Carbon::parse($request->start_date . ' ' . $request->end_time);
 
         // เช็คคิวว่าง (เหมือนเดิม)
         $isOverlap = Booking::where('equipment_id', $request->equipment_id)
             ->where('status', '!=', 'cancelled')
-            ->where(function($q) use ($start, $end) {
-                $q->whereBetween('scheduled_start', [$start, $end])
-                  ->orWhereBetween('scheduled_end', [$start, $end])
-                  ->orWhere(function($sub) use ($start, $end) {
-                      $sub->where('scheduled_start', '<', $start)
-                          ->where('scheduled_end', '>', $end);
-                  });
+            ->where(function ($query) use ($start, $end) {
+                $query->where('scheduled_start', '<', $end)
+                    ->where('scheduled_end', '>', $start);
             })->exists();
 
         if ($isOverlap) {
@@ -99,13 +95,13 @@ class DashboardController extends Controller
             'equipment_id' => $equipment->id,
             'scheduled_start' => $start,
             'scheduled_end' => $end,
-            
+
             'status' => 'pending',        // สถานะ: รอแอดมินตรวจสอบ
-            'payment_status' => 'pending', 
-            
+            'payment_status' => 'pending',
+
             'total_price' => 0,           // ✅ ใส่ 0 ไว้ก่อน (รอแอดมินมากรอก)
             'deposit_amount' => 0,        // ✅ ใส่ 0 ไว้ก่อน
-            
+
             'note' => $request->note,
         ]);
 
@@ -132,7 +128,7 @@ class DashboardController extends Controller
         }
 
         // ดึงเบอร์พร้อมเพย์จาก Setting (ใช้ method ตามโค้ดเดิมของคุณ)
-        $promptpayNo = Setting::get('company_promptpay', '0812345678'); 
+        $promptpayNo = Setting::get('company_promptpay', '0812345678');
 
         // สร้าง QR Code
         $promptPayService = new PromptPayService();
@@ -155,7 +151,7 @@ class DashboardController extends Controller
 
         if ($request->hasFile('slip_image')) {
             $path = $request->file('slip_image')->store('payment_slips', 'public');
-            
+
             $booking->update([
                 'payment_proof' => $path,
                 'payment_status' => 'pending_approval',
@@ -175,13 +171,14 @@ class DashboardController extends Controller
         ]);
 
         $bookings = Booking::where('equipment_id', $request->equipment_id)
-            ->whereDate('scheduled_start', $request->date)
+            ->whereDate('scheduled_start', '<=', $request->date)
+            ->whereDate('scheduled_end', '>=', $request->date)
             ->where('status', '!=', 'cancelled') // ไม่เอาที่ยกเลิก
             ->orderBy('scheduled_start')
             ->get(['scheduled_start', 'scheduled_end', 'status']); // ดึงแค่นี้พอ (เพื่อ privacy)
 
         // แปลงข้อมูลให้ใช้งานง่าย
-        $events = $bookings->map(function($booking) {
+        $events = $bookings->map(function ($booking) {
             return [
                 'start' => \Carbon\Carbon::parse($booking->scheduled_start)->format('H:i'),
                 'end' => \Carbon\Carbon::parse($booking->scheduled_end)->format('H:i'),

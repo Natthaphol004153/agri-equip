@@ -6,7 +6,6 @@
 @section('content')
 <div class="max-w-5xl mx-auto">
 
-    {{-- ปุ่มย้อนกลับ --}}
     <div class="flex items-center justify-between mb-6">
         <a href="{{ route('admin.jobs.index') }}" class="text-gray-500 hover:text-gray-700 text-sm flex items-center gap-1 transition">
             <i class="fa-solid fa-arrow-left"></i> กลับหน้ารายการ
@@ -15,24 +14,28 @@
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         
-        {{-- Header --}}
         <div class="bg-orange-50 px-6 py-4 border-b border-orange-100 flex justify-between items-center">
             <h3 class="font-bold text-lg text-orange-800 flex items-center gap-2">
                 <i class="fa-solid fa-pen-to-square"></i> แก้ไขงาน #{{ $job->job_number }}
             </h3>
             <span class="px-3 py-1 bg-white text-orange-600 rounded-full text-xs font-bold border border-orange-200 shadow-sm">
-                สถานะปัจจุบัน: {{ $job->status }}
+                {{ $job->status }}
             </span>
         </div>
 
         <div class="p-6 md:p-8">
-            <form action="{{ route('admin.jobs.update', $job->id) }}" method="POST">
+            {{-- 🔥 Form Start: เพิ่ม enctype --}}
+            <form action="{{ route('admin.jobs.update', $job->id) }}" method="POST" enctype="multipart/form-data" 
+                  x-data="{ 
+                      total: {{ $job->total_price ?? 0 }}, 
+                      deposit: {{ $job->deposit_amount ?? 0 }},
+                      paymentMethod: '{{ $job->payment_method ?? 'transfer' }}' 
+                  }">
                 @csrf
                 @method('PUT')
 
-                {{-- 🟢 SECTION 1: ข้อมูลทั่วไป (Read Only - แก้ไขไม่ได้) --}}
+                {{-- 🟢 SECTION 1: ข้อมูลทั่วไป (Read Only) --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    {{-- ฝั่งซ้าย: ลูกค้า & รถ --}}
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">ลูกค้า</label>
@@ -57,7 +60,6 @@
                         </div>
                     </div>
 
-                    {{-- ฝั่งขวา: วันเวลา --}}
                     <div class="bg-blue-50/50 rounded-xl p-5 border border-blue-100 flex flex-col justify-center">
                         <h4 class="text-blue-800 font-bold text-sm mb-4 flex items-center gap-2 border-b border-blue-100 pb-2">
                             <i class="fa-regular fa-calendar-days"></i> วันเวลาที่จอง
@@ -75,105 +77,136 @@
                                     {{ \Carbon\Carbon::parse($job->scheduled_end)->format('d/m/Y H:i') }}
                                 </span>
                             </div>
-                            <div class="flex justify-between text-sm pt-2 mt-2 border-t border-blue-100">
-                                <span class="text-gray-500">ระยะเวลา</span>
-                                <span class="font-bold text-blue-700">
-                                    {{ \Carbon\Carbon::parse($job->scheduled_start)->diffInHours($job->scheduled_end) }} ชั่วโมง
-                                </span>
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="relative flex py-5 items-center">
                     <div class="flex-grow border-t border-gray-200"></div>
-                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold tracking-wider">ส่วนแก้ไขข้อมูล</span>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase font-bold tracking-wider">ส่วนแก้ไขข้อมูลและปิดงาน</span>
                     <div class="flex-grow border-t border-gray-200"></div>
                 </div>
 
-                {{-- 🟡 SECTION 2: การเงินและสถานะ (Editable) --}}
+                {{-- 🟡 SECTION 2: การเงินและปิดงาน --}}
                 <div class="bg-yellow-50/50 rounded-2xl p-6 border border-yellow-100 mb-8">
                     <h4 class="font-bold text-yellow-800 mb-4 flex items-center gap-2 text-lg">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> กำหนดราคาและสถานะ
+                        <i class="fa-solid fa-file-invoice-dollar"></i> สรุปยอดและชำระเงิน
                     </h4>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {{-- 1. สถานะ --}}
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">สถานะงาน <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <select name="status" class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 bg-white shadow-sm cursor-pointer">
-                                    <option value="pending" {{ $job->status == 'pending' ? 'selected' : '' }}>⏳ รอตรวจสอบ</option>
-                                    <option value="scheduled" {{ $job->status == 'scheduled' ? 'selected' : '' }}>✅ อนุมัติ / รอชำระเงิน</option>
-                                    <option value="in_progress" {{ $job->status == 'in_progress' ? 'selected' : '' }}>🚜 กำลังดำเนินการ</option>
-                                    <option value="completed" {{ $job->status == 'completed' ? 'selected' : '' }}>🎉 เสร็จสิ้น</option>
-                                    <option value="cancelled" {{ $job->status == 'cancelled' ? 'selected' : '' }}>❌ ยกเลิก</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {{-- 2. ราคารวม --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        {{-- 1. ราคารวม (แก้ไขได้) --}}
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">ราคารวม (บาท)</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-500 font-bold">฿</span>
-                                </div>
-                                <input type="number" name="total_price" value="{{ old('total_price', $job->total_price) }}" step="0.01" min="0"
-                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 shadow-sm font-bold text-gray-800"
-                                       placeholder="0.00">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 font-bold">฿</span>
+                                <input type="number" name="total_price" x-model="total" step="0.01" min="0"
+                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400/50 shadow-sm font-bold text-gray-800">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1 ml-1">ราคาที่ตกลงกับลูกค้า</p>
+                            <p class="text-xs text-gray-500 mt-1">ปรับยอดเพิ่มได้ (เช่น ค่าน้ำมัน, OT)</p>
                         </div>
 
-                        {{-- 3. มัดจำ --}}
+                        {{-- 2. มัดจำ --}}
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ยอดมัดจำ (บาท)</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">หักมัดจำแล้ว</label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-500 font-bold">฿</span>
-                                </div>
-                                <input type="number" name="deposit_amount" value="{{ old('deposit_amount', $job->deposit_amount) }}" step="0.01" min="0"
-                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 shadow-sm"
-                                       placeholder="0.00">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 font-bold">฿</span>
+                                <input type="number" name="deposit_amount" x-model="deposit" step="0.01" min="0" readonly
+                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 shadow-sm cursor-not-allowed">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1 ml-1">ใส่ 0 หากไม่ต้องมัดจำ</p>
+                        </div>
+
+                        {{-- 3. ยอดคงเหลือ --}}
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">ยอดคงเหลือที่ต้องเก็บ</label>
+                            <div class="relative">
+                                <div class="w-full px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-600 font-bold text-lg flex justify-between items-center shadow-inner">
+                                    <span>฿</span>
+                                    <span x-text="(total - deposit).toLocaleString('th-TH', {minimumFractionDigits: 2})"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ส่วนเลือกวิธีชำระเงิน --}}
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <label class="block text-sm font-bold text-gray-700 mb-3">วิธีชำระเงินปิดยอด <span class="text-red-500">*</span></label>
+                        
+                        <div class="flex flex-wrap gap-4 mb-4">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="payment_method" value="transfer" class="peer sr-only" x-model="paymentMethod">
+                                <div class="px-4 py-2 rounded-lg border border-gray-300 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 flex items-center gap-2 transition hover:bg-gray-50">
+                                    <i class="fa-solid fa-mobile-screen-button"></i> โอนเงิน (Transfer)
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="payment_method" value="cash" class="peer sr-only" x-model="paymentMethod">
+                                <div class="px-4 py-2 rounded-lg border border-gray-300 peer-checked:bg-green-50 peer-checked:border-green-500 peer-checked:text-green-700 flex items-center gap-2 transition hover:bg-gray-50">
+                                    <i class="fa-solid fa-money-bill-wave"></i> เงินสด (Cash)
+                                </div>
+                            </label>
+                        </div>
+
+                        {{-- ช่องแนบสลิป (แสดงเฉพาะเลือกโอน) --}}
+                        <div x-show="paymentMethod === 'transfer'" x-transition class="space-y-3">
+                            <label class="block text-sm font-medium text-gray-600">แนบหลักฐานการโอน (Slip)</label>
+                            <input type="file" name="payment_proof" accept="image/*" 
+                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
+                            @if($job->payment_proof)
+                                <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check-circle"></i> มีหลักฐานเดิมแล้ว (แนบใหม่เพื่อเปลี่ยน)</p>
+                            @endif
+                        </div>
+
+                        {{-- ข้อความแจ้งเตือนเงินสด (แสดงเฉพาะเลือกเงินสด) --}}
+                        <div x-show="paymentMethod === 'cash'" x-transition class="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm border border-green-200 flex items-start gap-2">
+                            <i class="fa-solid fa-circle-info mt-0.5"></i>
+                            <div>
+                                <p class="font-bold">รับชำระด้วยเงินสด</p>
+                                <p class="text-xs">ระบบจะบันทึกสถานะการเงินเป็น "จ่ายแล้ว (Paid)" ทันทีที่บันทึกจบงาน</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- 🟢 SECTION 3: คนขับ & หมายเหตุ --}}
+                {{-- 🟢 SECTION 3: สถานะและคนขับ --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">พนักงานขับรถ (Assigned Staff)</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-id-card absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <select name="assigned_staff_id" class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 bg-white shadow-sm cursor-pointer">
-                                <option value="">-- ยังไม่ระบุ --</option>
-                                @foreach($staffs as $staff)
-                                    <option value="{{ $staff->id }}" {{ $job->assigned_staff_id == $staff->id ? 'selected' : '' }}>
-                                        {{ $staff->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">อัปเดตสถานะงาน <span class="text-red-500">*</span></label>
+                        <select name="status" class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 bg-white shadow-sm cursor-pointer">
+                            <option value="pending" {{ $job->status == 'pending' ? 'selected' : '' }}>⏳ รอตรวจสอบ</option>
+                            <option value="scheduled" {{ $job->status == 'scheduled' ? 'selected' : '' }}>✅ อนุมัติ / รอชำระเงิน</option>
+                            <option value="in_progress" {{ $job->status == 'in_progress' ? 'selected' : '' }}>🚜 กำลังดำเนินการ</option>
+                            <option value="completed" {{ $job->status == 'completed' ? 'selected' : '' }}>🎉 เสร็จสิ้น (ปิดงาน)</option>
+                            <option value="cancelled" {{ $job->status == 'cancelled' ? 'selected' : '' }}>❌ ยกเลิก</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">หมายเหตุเพิ่มเติม</label>
-                        <textarea name="note" rows="1" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 shadow-sm" placeholder="เช่น สถานที่หน้างาน, เบอร์โทรสำรอง...">{{ old('note', $job->note) }}</textarea>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">พนักงานขับรถ</label>
+                        <select name="assigned_staff_id" class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 bg-white shadow-sm cursor-pointer">
+                            <option value="">-- ยังไม่ระบุ --</option>
+                            @foreach($staffs as $staff)
+                                <option value="{{ $staff->id }}" {{ $job->assigned_staff_id == $staff->id ? 'selected' : '' }}>
+                                    {{ $staff->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">หมายเหตุเพิ่มเติม</label>
+                    <textarea name="note" rows="2" class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 shadow-sm" placeholder="ระบุหมายเหตุ...">{{ old('note', $job->note) }}</textarea>
                 </div>
 
                 {{-- Action Buttons --}}
                 <div class="flex items-center justify-between pt-6 border-t border-gray-100 bg-gray-50 -mx-6 -mb-6 px-6 py-4 md:px-8 md:rounded-b-2xl mt-6">
-                    <button type="button" onclick="if(confirm('⚠️ ยืนยันที่จะยกเลิกงานนี้? การกระทำนี้ไม่สามารถย้อนกลับได้')) document.getElementById('cancelForm').submit();" 
-                            class="text-red-500 hover:text-red-700 text-sm font-bold px-4 py-2 hover:bg-red-50 rounded-lg transition flex items-center gap-2">
-                        <i class="fa-solid fa-trash-can"></i> <span class="hidden md:inline">ยกเลิกงานนี้</span>
+                    <button type="button" onclick="if(confirm('⚠️ ยืนยันที่จะยกเลิกงานนี้?')) document.getElementById('cancelForm').submit();" 
+                            class="text-red-500 hover:text-red-700 text-sm font-bold px-4 py-2 hover:bg-red-50 rounded-lg transition">
+                        <i class="fa-solid fa-trash-can"></i> ยกเลิกงาน
                     </button>
 
                     <div class="flex gap-3">
                         <a href="{{ route('admin.jobs.index') }}" class="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-200 transition">
-                            ยกเลิก
+                            ย้อนกลับ
                         </a>
                         <button type="submit" class="bg-green-600 text-white px-8 py-2.5 rounded-xl shadow-lg shadow-green-600/30 hover:bg-green-700 hover:-translate-y-0.5 transition font-bold flex items-center gap-2">
                             <i class="fa-solid fa-save"></i> บันทึกข้อมูล
@@ -184,10 +217,7 @@
         </div>
     </div>
     
-    {{-- Form สำหรับปุ่มยกเลิก --}}
-    <form id="cancelForm" action="{{ route('admin.jobs.cancel', $job->id) }}" method="POST" class="hidden">
-        @csrf
-    </form>
+    <form id="cancelForm" action="{{ route('admin.jobs.cancel', $job->id) }}" method="POST" class="hidden">@csrf</form>
 
 </div>
 @endsection
