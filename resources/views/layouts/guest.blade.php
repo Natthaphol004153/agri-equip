@@ -33,7 +33,7 @@
             <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-agri-primary/10 mb-4">
                 <i class="fa-solid fa-tractor text-3xl text-agri-primary"></i>
             </div>
-            <h2 class="text-2xl font-bold text-agri-primary">AgriTech<span class="text-agri-accent">Pro</span></h2>
+            <h2 class="text-2xl font-bold text-agri-primary">มนตรี<span class="text-agri-accent">การเกษตร</span></h2>
             <p class="text-gray-500 text-sm mt-1">ระบบบริหารจัดการเครื่องจักรและงานบริการ</p>
         </div>
         @yield('content')

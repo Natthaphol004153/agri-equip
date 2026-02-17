@@ -15,22 +15,35 @@ use App\Http\Controllers\Web\StaffLoginController;
 use App\Http\Controllers\Web\SettingController;
 use App\Http\Controllers\Web\ExcelExportController;
 use App\Http\Controllers\Web\CustomerAuthController;
-
-// ✅ เพิ่มบรรทัดนี้: เรียกใช้ Controller ลูกค้า (ตั้งชื่อเล่นว่า CustomerDashboardController)
+// ✅ เรียกใช้ PublicController ที่สร้างใหม่
+use App\Http\Controllers\Web\PublicController;
+// ✅ เรียกใช้ Controller ลูกค้า
 use App\Http\Controllers\Web\Customer\DashboardController as CustomerDashboardController;
 
 /*
 |--------------------------------------------------------------------------
-| 1. GUEST ZONE (คนทั่วไป / หน้า Login)
+| 🌍 PUBLIC ZONE (หน้าแรกสำหรับทุกคน)
+|--------------------------------------------------------------------------
+*/
+// หน้าแรก (Landing Page) แสดงรายการรถและตารางงาน
+Route::get('/', [PublicController::class, 'index'])->name('home');
+
+// API สำหรับดึงข้อมูลปฏิทิน (ใช้โดย FullCalendar)
+Route::get('/api/public-calendar', [PublicController::class, 'getCalendarEvents'])->name('public.calendar');
+
+
+/*
+|--------------------------------------------------------------------------
+| 1. GUEST ZONE (หน้า Login ต่างๆ)
 |--------------------------------------------------------------------------
 */
 Route::middleware('guest')->group(function () {
-    // Admin Login
-    Route::get('/', [AuthController::class, 'loginForm'])->name('login');
-    Route::get('/login', [AuthController::class, 'loginForm']);
-    Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 
-    // Staff PIN Login
+    // 👮‍♂️ Admin Login (ย้ายมาที่ /admin/login)
+    Route::get('/admin/login', [AuthController::class, 'loginForm'])->name('login');
+    Route::post('/admin/login', [AuthController::class, 'login'])->name('login.submit');
+
+    // 👷‍♂️ Staff PIN Login
     Route::get('/staff/login', [StaffLoginController::class, 'showLoginForm'])->name('staff.login');
     Route::post('/staff/login', [StaffLoginController::class, 'login'])->name('staff.login.submit');
 });
@@ -41,26 +54,23 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::prefix('customer')->name('customer.')->group(function () {
-    
-    // 1. ส่วนที่ยังไม่ได้ Login (Guest Customer)
+
+    // 1. ส่วนที่ยังไม่ได้ Login
     Route::middleware('guest:customer')->group(function () {
         Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
         Route::post('login', [CustomerAuthController::class, 'login'])->name('login.submit');
     });
 
-    // 2. ส่วนที่ Login แล้ว (Authenticated Customer)
+    // 2. ส่วนที่ Login แล้ว
     Route::middleware('auth:customer')->group(function () {
-        
-        // Dashboard
         Route::get('dashboard', [CustomerDashboardController::class, 'index'])->name('dashboard');
-        
-        // รายละเอียด
+        Route::get('api/check-schedule', [CustomerDashboardController::class, 'apiCheckSchedule'])
+            ->name('booking.check_schedule');
+        Route::get('booking/create', [CustomerDashboardController::class, 'create'])->name('booking.create');
+        Route::post('booking', [CustomerDashboardController::class, 'store'])->name('booking.store');
         Route::get('booking/{id}', [CustomerDashboardController::class, 'show'])->name('booking.show');
-        
-        // ✅ จ่ายเงิน
         Route::get('booking/{id}/payment', [CustomerDashboardController::class, 'payment'])->name('booking.payment');
         Route::post('booking/{id}/payment', [CustomerDashboardController::class, 'uploadSlip'])->name('booking.upload_slip');
-        // Logout
         Route::post('logout', [CustomerAuthController::class, 'logout'])->name('logout');
     });
 });
@@ -102,14 +112,12 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/{id}/edit', [JobController::class, 'edit'])->name('edit');
             Route::put('/{id}', [JobController::class, 'update'])->name('update');
 
-            // Workflow & Actions
             Route::get('/{id}/review', [JobController::class, 'review'])->name('review');
             Route::post('/{id}/approve', [JobController::class, 'approve'])->name('approve');
             Route::post('/{id}/cancel', [JobController::class, 'cancel'])->name('cancel');
             Route::post('/{id}/update-driver', [JobController::class, 'updateDriver'])->name('update_driver');
             Route::get('/{id}/receipt', [JobController::class, 'receipt'])->name('receipt');
 
-            // API Helper inside Admin
             Route::get('/api/get-bookings', [JobController::class, 'getBookingsByDate'])->name('get_bookings');
         });
 
@@ -124,34 +132,29 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{id}/start', 'start')->name('start');
         });
 
-        // --- ⛽ Fuel Management ---
+        // --- Fuel Management ---
         Route::prefix('fuel-stocks')->name('fuel.')->controller(FuelStockController::class)->group(function () {
-            Route::get('/', 'index')->name('index');           
-            Route::get('/purchase', 'createPurchase')->name('purchase'); 
-            Route::post('/purchase', 'storePurchase')->name('store_purchase'); 
-
-            // เพิ่ม/ลบ ถังน้ำมัน (Admin Only)
+            Route::get('/', 'index')->name('index');
+            Route::get('/purchase', 'createPurchase')->name('purchase');
+            Route::post('/purchase', 'storePurchase')->name('store_purchase');
             Route::post('/tank', 'storeTank')->name('tank.store');
             Route::delete('/tank/{id}', 'destroyTank')->name('tank.destroy');
         });
 
-        // --- Reports ---
+        // --- Reports & Exports ---
         Route::get('/reports', function () {
             return view('admin.reports.index');
         })->name('reports.index');
 
-        // --- EXCEL EXPORT ---
         Route::prefix('export')->name('export.')->controller(ExcelExportController::class)->group(function () {
             Route::get('/jobs', 'exportJobs')->name('jobs');
             Route::get('/customers', 'exportCustomers')->name('customers');
             Route::get('/maintenance', 'exportMaintenance')->name('maintenance');
         });
 
-        // --- Profile ---
+        // --- Profile & Settings ---
         Route::get('/profile', [UserController::class, 'profileForm'])->name('profile');
         Route::post('/profile', [UserController::class, 'updateProfile'])->name('profile.update');
-
-        // --- Settings ---
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
     });
@@ -162,10 +165,8 @@ Route::middleware(['auth'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('staff')->name('staff.')->group(function () {
-
         Route::get('/dashboard', [StaffJobController::class, 'dashboard'])->name('dashboard');
 
-        // --- Jobs (Staff View) ---
         Route::prefix('jobs')->name('jobs.')->group(function () {
             Route::get('/', [StaffJobController::class, 'index'])->name('index');
             Route::get('/{id}', [StaffJobController::class, 'show'])->name('show');
@@ -174,21 +175,15 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{id}/report-issue', [StaffJobController::class, 'reportIssue'])->name('report_issue');
         });
 
-        // --- Maintenance (Report Only) ---
         Route::prefix('maintenance')->name('maintenance.')->group(function () {
             Route::get('/', [StaffJobController::class, 'maintenanceIndex'])->name('index');
             Route::get('/create', [StaffJobController::class, 'createReport'])->name('create');
             Route::post('/store', [StaffJobController::class, 'storeReport'])->name('store');
         });
 
-        // --- Fuel Usage ---
         Route::get('/fuel/create', [FuelController::class, 'create'])->name('fuel.create');
         Route::post('/fuel/store', [FuelController::class, 'store'])->name('fuel.store');
-
-        // --- General Report ---
         Route::post('/report-general', [StaffJobController::class, 'reportGeneral'])->name('report_general');
-
-        // --- History ---
         Route::get('/jobs-history', [StaffJobController::class, 'history'])->name('jobs.history');
     });
 

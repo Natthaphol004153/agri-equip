@@ -66,7 +66,7 @@
                 <i class="fa-solid fa-leaf text-lg"></i>
             </div>
             <div>
-                <span class="font-bold text-xl tracking-wide block leading-none">AgriTech</span>
+                <span class="font-bold text-xl tracking-wide block leading-none">มนตรีการเกษตร</span>
                 <span class="text-[10px] text-agri-accent tracking-widest font-medium opacity-80">ADMIN SYSTEM</span>
             </div>
         </div>

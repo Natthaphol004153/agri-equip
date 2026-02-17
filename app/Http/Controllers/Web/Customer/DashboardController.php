@@ -6,18 +6,25 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str; // ✅ เพิ่ม: สำหรับสร้างเลขใบงาน
+use Carbon\Carbon; // ✅ เพิ่ม: สำหรับจัดการวันเวลา
 use App\Models\Booking;
-use App\Models\Setting; // ✅ เรียกใช้ Model Setting
+use App\Models\Equipment; // ✅ เพิ่ม: เรียกใช้ Model Equipment
+use App\Models\Setting;
 use App\Services\PromptPayService;
 
 class DashboardController extends Controller
 {
-    // แสดงรายการจอง (หน้าแรก)
+    // ----------------------------------------------------------------------
+    // 🟢 ส่วนแสดงผลทั่วไป (Dashboard & Detail)
+    // ----------------------------------------------------------------------
+
+    // แสดงรายการจอง (หน้าแรก Dashboard)
     public function index()
     {
         $customerId = Auth::guard('customer')->id();
 
-        // ดึงรายการจอง
+        // ดึงรายการจองล่าสุด
         $bookings = Booking::where('customer_id', $customerId)
                             ->with('equipment') 
                             ->latest()
@@ -37,59 +44,152 @@ class DashboardController extends Controller
         return view('customer.booking.show', compact('booking'));
     }
 
-    // ✅ หน้าแสดง QR Code ชำระเงิน
+    // ----------------------------------------------------------------------
+    // 🟢 ส่วนการจองงานใหม่ (Booking System) - ✅ เพิ่มใหม่
+    // ----------------------------------------------------------------------
+
+    // 1. แสดงหน้าฟอร์มจอง
+    public function create(Request $request)
+    {
+        // ดึงเครื่องจักรที่สถานะพร้อมใช้งาน (Available)
+        $equipments = Equipment::where('current_status', 'available')->get();
+        
+        // รับค่าวันที่ที่ส่งมาจากหน้าปฏิทิน (ถ้ามี)
+        $selectedDate = $request->query('date');
+
+        return view('customer.booking.create', compact('equipments', 'selectedDate'));
+    }
+
+    // 2. บันทึกข้อมูลการจอง
+   public function store(Request $request)
+    {
+        $request->validate([
+            'equipment_id' => 'required|exists:equipment,id',
+            'start_date' => 'required|date|after_or_equal:today',
+            'start_time' => 'required',
+            'end_time' => 'required|after:start_time',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $equipment = Equipment::findOrFail($request->equipment_id);
+        
+        $start = Carbon::parse($request->start_date . ' ' . $request->start_time);
+        $end = Carbon::parse($request->start_date . ' ' . $request->end_time);
+
+        // เช็คคิวว่าง (เหมือนเดิม)
+        $isOverlap = Booking::where('equipment_id', $request->equipment_id)
+            ->where('status', '!=', 'cancelled')
+            ->where(function($q) use ($start, $end) {
+                $q->whereBetween('scheduled_start', [$start, $end])
+                  ->orWhereBetween('scheduled_end', [$start, $end])
+                  ->orWhere(function($sub) use ($start, $end) {
+                      $sub->where('scheduled_start', '<', $start)
+                          ->where('scheduled_end', '>', $end);
+                  });
+            })->exists();
+
+        if ($isOverlap) {
+            return back()->withInput()->withErrors(['time_slot' => '❌ ช่วงเวลานี้มีผู้จองแล้ว กรุณาเลือกเวลาอื่น']);
+        }
+
+        // ✅ สร้างใบงาน (Booking)
+        Booking::create([
+            'job_number' => 'JOB-' . strtoupper(Str::random(8)),
+            'customer_id' => Auth::guard('customer')->id(),
+            'equipment_id' => $equipment->id,
+            'scheduled_start' => $start,
+            'scheduled_end' => $end,
+            
+            'status' => 'pending',        // สถานะ: รอแอดมินตรวจสอบ
+            'payment_status' => 'pending', 
+            
+            'total_price' => 0,           // ✅ ใส่ 0 ไว้ก่อน (รอแอดมินมากรอก)
+            'deposit_amount' => 0,        // ✅ ใส่ 0 ไว้ก่อน
+            
+            'note' => $request->note,
+        ]);
+
+        // ✅ ส่งกลับไปหน้า Dashboard พร้อมข้อความแจ้งเตือน
+        return redirect()->route('customer.dashboard')
+            ->with('success', 'ส่งคำขอจองเรียบร้อยแล้ว! เจ้าหน้าที่จะตรวจสอบรายละเอียดและแจ้งราคาให้ทราบภายหลังครับ');
+    }
+
+    // ----------------------------------------------------------------------
+    // 🟢 ส่วนการชำระเงิน (Payment)
+    // ----------------------------------------------------------------------
+
+    // หน้าแสดง QR Code ชำระเงิน
     public function payment($id)
     {
         $booking = Booking::where('id', $id)
             ->where('customer_id', Auth::guard('customer')->id())
             ->firstOrFail();
 
-        // 1. เช็คสถานะ: ถ้าจ่ายแล้ว หรือ รอตรวจสอบ ไม่ต้องจ่ายซ้ำ
-        // (รวม deposit_paid และ pending_approval ด้วย)
+        // เช็คสถานะ: ถ้าจ่ายแล้ว หรือ รอตรวจสอบ ไม่ต้องจ่ายซ้ำ
         if (in_array($booking->payment_status, ['paid', 'deposit_paid', 'pending_approval'])) {
             return redirect()->route('customer.booking.show', $id)
                 ->with('info', 'รายการนี้อยู่ในระหว่างตรวจสอบหรือชำระเงินเรียบร้อยแล้ว');
         }
 
-        // 2. ดึงเบอร์พร้อมเพย์จาก Setting (ถ้าไม่มีให้ใช้ค่า Default 08xxxxxx)
-        // คีย์ 'company_promptpay' ต้องตรงกับในฐานข้อมูลตาราง settings
+        // ดึงเบอร์พร้อมเพย์จาก Setting (ใช้ method ตามโค้ดเดิมของคุณ)
         $promptpayNo = Setting::get('company_promptpay', '0812345678'); 
 
-        // 3. สร้าง QR Code Payload
+        // สร้าง QR Code
         $promptPayService = new PromptPayService();
         $qrPayload = $promptPayService->generatePayload($promptpayNo, $booking->total_price);
-        
-        // 4. แปลง Payload เป็น URL รูปภาพ (Google Chart API)
         $qrUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=" . urlencode($qrPayload) . "&choe=UTF-8";
 
         return view('customer.booking.payment', compact('booking', 'qrUrl', 'promptpayNo'));
     }
 
-    // ✅ บันทึกสลิปโอนเงิน
+    // บันทึกสลิปโอนเงิน
     public function uploadSlip(Request $request, $id)
     {
         $request->validate([
-            'slip_image' => 'required|image|max:5120', // ✅ เพิ่มขนาดเป็น 5MB (เผื่อกล้องมือถือชัดๆ)
+            'slip_image' => 'required|image|max:5120', // 5MB
         ]);
 
         $booking = Booking::where('id', $id)
             ->where('customer_id', Auth::guard('customer')->id())
             ->firstOrFail();
 
-        // อัปโหลดรูป
         if ($request->hasFile('slip_image')) {
-            // เก็บไฟล์ในโฟลเดอร์ payment_slips (Disk: public)
             $path = $request->file('slip_image')->store('payment_slips', 'public');
             
-            // อัปเดตข้อมูลใน Database
             $booking->update([
                 'payment_proof' => $path,
-                'payment_status' => 'pending_approval', // เปลี่ยนสถานะเป็น "รอตรวจสอบ"
-                'payment_method' => 'transfer' // ระบุว่าจ่ายแบบโอน
+                'payment_status' => 'pending_approval',
+                'payment_method' => 'transfer'
             ]);
         }
 
         return redirect()->route('customer.dashboard')
             ->with('success', 'ส่งหลักฐานการโอนเรียบร้อยแล้ว รอเจ้าหน้าที่ตรวจสอบ');
+    }
+    // ✅ เพิ่มฟังก์ชันนี้สำหรับเช็คคิวงาน (AJAX)
+    public function apiCheckSchedule(Request $request)
+    {
+        $request->validate([
+            'equipment_id' => 'required',
+            'date' => 'required|date',
+        ]);
+
+        $bookings = Booking::where('equipment_id', $request->equipment_id)
+            ->whereDate('scheduled_start', $request->date)
+            ->where('status', '!=', 'cancelled') // ไม่เอาที่ยกเลิก
+            ->orderBy('scheduled_start')
+            ->get(['scheduled_start', 'scheduled_end', 'status']); // ดึงแค่นี้พอ (เพื่อ privacy)
+
+        // แปลงข้อมูลให้ใช้งานง่าย
+        $events = $bookings->map(function($booking) {
+            return [
+                'start' => \Carbon\Carbon::parse($booking->scheduled_start)->format('H:i'),
+                'end' => \Carbon\Carbon::parse($booking->scheduled_end)->format('H:i'),
+                'status' => $booking->status,
+                // ไม่ส่งชื่อลูกค้าไป เพื่อความเป็นส่วนตัว
+            ];
+        });
+
+        return response()->json($events);
     }
 }

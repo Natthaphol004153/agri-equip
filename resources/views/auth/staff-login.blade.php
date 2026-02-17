@@ -53,7 +53,7 @@
         </div>
         
         <div class="bg-gray-50 p-4 text-center border-t border-gray-100">
-            <a href="{{ url('/login') }}" class="text-sm text-gray-500 hover:text-green-600">
+            <a href="{{ url('admin/login') }}" class="text-sm text-gray-500 hover:text-green-600">
                 สำหรับผู้ดูแลระบบ (Admin Login)
             </a>
         </div>
