@@ -103,6 +103,17 @@
                             <p class="text-xs text-gray-400">ที่อยู่</p>
                             <p class="font-medium text-gray-800 text-sm leading-relaxed">{{ $job->customer->address ?? '-' }}</p>
                         </div>
+                        @php
+                            $adminMapLink = isset($job->customer->latitude) ?
+                                "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}" :
+                                "https://maps.google.com/maps?q=" . urlencode($job->customer->address ?? '');
+                        @endphp
+                        <div>
+                            <a href="{{ $adminMapLink }}" target="_blank"
+                                class="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline">
+                                <i class="fa-solid fa-map-location-dot"></i> เปิดแผนที่
+                            </a>
+                        </div>
                     </div>
                 </div>
 
@@ -199,6 +210,17 @@
                             <span class="text-2xl font-bold text-agri-primary">{{ number_format($job->total_price - $job->deposit_amount, 2) }} ฿</span>
                         </div>
                     </div>
+                    <div class="flex justify-between text-gray-600">
+                        <span>วิธีชำระเงิน</span>
+                        @php
+                            $paymentMethodLabel = match ($job->payment_method) {
+                                'cash' => 'เงินสด',
+                                'transfer' => 'โอนเงิน',
+                                default => '-'
+                            };
+                        @endphp
+                        <span class="font-medium">{{ $paymentMethodLabel }}</span>
+                    </div>
                 </div>
 
                 @if ($job->status == 'completed')
@@ -241,7 +263,13 @@
                             @endif
                         </div>
 
-                        @if($job->payment_proof)
+                        @if($job->payment_method === 'cash')
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                                <i class="fa-solid fa-hand-holding-dollar text-blue-500 text-3xl mb-2"></i>
+                                <p class="text-blue-700 font-bold">ชำระเงินสด</p>
+                                <p class="text-xs text-blue-600">ไม่ต้องมีสลิปโอน</p>
+                            </div>
+                        @elseif($job->payment_proof)
                             <a href="{{ asset('storage/' . $job->payment_proof) }}" target="_blank" class="block rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition group relative">
                                 <img src="{{ asset('storage/' . $job->payment_proof) }}" class="w-full h-32 object-cover">
                                 <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition">

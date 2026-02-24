@@ -14,6 +14,7 @@ use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\StaffLoginController;
 use App\Http\Controllers\Web\SettingController;
 use App\Http\Controllers\Web\ExcelExportController;
+use App\Http\Controllers\Web\ReportController;
 use App\Http\Controllers\Web\CustomerAuthController;
 // ✅ เรียกใช้ PublicController ที่สร้างใหม่
 use App\Http\Controllers\Web\PublicController;
@@ -152,6 +153,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reports', function () {
             return view('admin.reports.index');
         })->name('reports.index');
+        Route::get('/reports/equipment-profit', [ReportController::class, 'equipmentProfit'])
+            ->name('reports.equipment_profit');
 
         Route::prefix('export')->name('export.')->controller(ExcelExportController::class)->group(function () {
             Route::get('/jobs', 'exportJobs')->name('jobs');

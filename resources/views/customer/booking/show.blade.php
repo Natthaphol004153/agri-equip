@@ -39,6 +39,25 @@
         
         {{-- Left Column: รายละเอียดงาน --}}
         <div class="md:col-span-2 space-y-6">
+            {{-- สถานที่ให้บริการ --}}
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-agri-primary"></i> สถานที่ให้บริการ
+                </h3>
+                <div class="space-y-2 text-sm text-gray-600">
+                    <p>{{ $booking->customer->address ?? 'ไม่ระบุที่อยู่' }}</p>
+                    @php
+                        $customerMapLink = isset($booking->customer->latitude) ?
+                            "https://maps.google.com/maps?q={$booking->customer->latitude},{$booking->customer->longitude}" :
+                            "https://maps.google.com/maps?q=" . urlencode($booking->customer->address ?? '');
+                    @endphp
+                    <a href="{{ $customerMapLink }}" target="_blank"
+                        class="inline-flex items-center gap-2 text-blue-600 font-medium hover:underline">
+                        <i class="fa-solid fa-location-dot"></i> เปิด Google Maps
+                    </a>
+                </div>
+            </div>
+
             {{-- ข้อมูลเครื่องจักร --}}
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">

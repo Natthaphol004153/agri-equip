@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Staff Portal') - AgriTech</title>
+    <title>@yield('title', 'Staff Portal') - มนตรีการเกษตร</title>
 
     {{-- Fonts --}}
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -58,7 +58,9 @@
                     <i class="fa-solid fa-leaf text-agri-accent text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight tracking-wide">AgriTech<span class="text-agri-accent">Pro</span></h1>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide">
+                        มนตรี<span class="text-agri-accent">การเกษตร</span>
+                    </h1>
                     <p class="text-xs text-white/50 tracking-wider">STAFF PORTAL</p>
                 </div>
             </div>
@@ -135,7 +137,7 @@
                 <div class="w-9 h-9 rounded-lg bg-agri-primary text-white flex items-center justify-center">
                     <i class="fa-solid fa-leaf text-agri-accent"></i>
                 </div>
-                <h1 class="font-bold text-gray-800 text-lg">@yield('header', 'AgriTech')</h1>
+                <h1 class="font-bold text-gray-800 text-lg">@yield('header', 'มนตรีการเกษตร')</h1>
             </div>
             {{-- Profile Dropdown Mobile --}}
             <div class="relative" x-data="{ open: false }">

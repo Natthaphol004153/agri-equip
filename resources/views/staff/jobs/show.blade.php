@@ -39,7 +39,9 @@
         <div class="grid grid-cols-2 gap-3">
             <a href="tel:{{ $job->customer->phone }}" class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-200 bg-green-50 text-green-700 font-bold text-sm hover:bg-green-100 transition active:scale-95"><i class="fa-solid fa-phone"></i> โทรหาลูกค้า</a>
             @php
-                $mapLink = isset($job->customer->latitude) ? "http://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}" : "http://maps.google.com/maps?q=" . urlencode($job->customer->address);
+                $mapLink = isset($job->customer->latitude) ?
+                    "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}" :
+                    "https://maps.google.com/maps?q=" . urlencode($job->customer->address ?? '');
             @endphp
             <a href="{{ $mapLink }}" target="_blank" class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-bold text-sm hover:bg-blue-100 transition active:scale-95"><i class="fa-solid fa-map-location-dot"></i> นำทาง</a>
         </div>

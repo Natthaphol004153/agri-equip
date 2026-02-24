@@ -78,6 +78,17 @@
                             <span>ยอดที่ต้องโอน</span>
                             <span>{{ number_format($job->total_price - $job->deposit_amount, 2) }} ฿</span>
                         </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>วิธีชำระเงิน</span>
+                            @php
+                                $paymentMethodLabel = match ($job->payment_method) {
+                                    'cash' => 'เงินสด',
+                                    'transfer' => 'โอนเงิน',
+                                    default => '-'
+                                };
+                            @endphp
+                            <span class="font-bold">{{ $paymentMethodLabel }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -113,9 +124,15 @@
 
                 <div>
                     <h4 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-money-bill-transfer text-gray-400"></i> สลิปโอนเงิน
+                        <i class="fa-solid fa-money-bill-transfer text-gray-400"></i> หลักฐานการชำระเงิน
                     </h4>
-                    @if($job->payment_proof)
+                    @if($job->payment_method === 'cash')
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                            <i class="fa-solid fa-hand-holding-dollar text-blue-500 text-3xl mb-2"></i>
+                            <p class="text-blue-700 font-bold">ชำระเงินสด</p>
+                            <p class="text-xs text-blue-600">ไม่ต้องมีสลิปโอน</p>
+                        </div>
+                    @elseif($job->payment_proof)
                         <div class="relative group rounded-xl overflow-hidden border border-gray-200 shadow-sm">
                             <img src="{{ asset('storage/' . $job->payment_proof) }}" class="w-full h-64 object-cover">
                             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">

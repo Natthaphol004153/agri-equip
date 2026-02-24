@@ -5,6 +5,17 @@
 @section('content')
 <div class="max-w-6xl mx-auto space-y-6">
 
+    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-gray-500 font-bold">รายงานเฉพาะทาง</p>
+            <p class="text-lg font-bold text-gray-800">กำไร/ขาดทุนรายตัวรถ</p>
+        </div>
+        <a href="{{ route('admin.reports.equipment_profit') }}"
+            class="bg-agri-primary text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-agri-primary/30 hover:bg-agri-hover transition">
+            ดูรายงาน
+        </a>
+    </div>
+
     {{-- Filter Bar: เปลี่ยนเป็น Form เพื่อให้ส่งค่า Filter ได้ --}}
     <form action="{{ route('admin.reports.index') }}" method="GET" class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div class="flex items-center gap-3 text-gray-600">

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-    <title>Customer Dashboard - AgriTech Management</title>
+    <title>Customer Dashboard - มนตรีการเกษตร</title>
     
     {{-- 1. Fonts & Icons (โหลด CSS ก่อน) --}}
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -53,7 +53,7 @@
                         <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
                             <i class="fa-solid fa-tractor text-agri-accent text-xl"></i>
                         </div>
-                        <span class="font-bold text-xl tracking-wide">AgriTech<span class="text-agri-accent">Pro</span></span>
+                        <span class="font-bold text-xl tracking-wide">มนตรี<span class="text-agri-accent">การเกษตร</span></span>
                     </a>
                 </div>
                 
@@ -90,7 +90,7 @@
     {{-- Footer --}}
     <footer class="bg-white border-t border-gray-200 py-6 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm flex flex-col md:flex-row justify-between items-center gap-2">
-            <p>&copy; {{ date('Y') }} AgriTech Management System. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} มนตรีการเกษตร. All rights reserved.</p>
             <p class="text-xs text-gray-400">
                 <i class="fa-solid fa-code text-agri-primary"></i> Developed for Community
             </p>
