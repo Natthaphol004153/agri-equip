@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Services\BookingService;
 use App\Models\Booking;
 use Exception;
+use Carbon\Carbon; // ✅ เพิ่ม Import Carbon
 
 class BookingController extends Controller
 {
@@ -21,32 +22,19 @@ class BookingController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'equipment_id' => 'required|exists:equipment,id',
-            'assigned_staff_id' => 'nullable|exists:users,id', // พนักงานอาจยังไม่มอบหมายตอนจอง
+            'assigned_staff_id' => 'nullable|exists:users,id', 
             'scheduled_start' => 'required|date|after:now',
-            'scheduled_end' => 'required|date|after:scheduled_start',
-            'total_price' => 'required|numeric'
+            'scheduled_end' => 'required|date|after:scheduled_start|before_or_equal:' . Carbon::parse($request->scheduled_start)->addDays(30)->format('Y-m-d H:i:s'),
+            'total_price' => 'required|numeric',
+            'payment_method' => 'nullable|string'
         ]);
-        // ตรวจสอบว่าถ้ามีการระบุ assigned_staff_id ให้เช็คว่าพนักงานติดงานอยู่หรือไม่
-        if ($request->filled('assigned_staff_id')) {
-            $isStaffBusy = Booking::where('assigned_staff_id', $request->assigned_staff_id)
-                ->where(function ($query) use ($request) {
-                    $query->whereBetween('scheduled_start', [$request->scheduled_start, $request->scheduled_end])
-                        ->orWhereBetween('scheduled_end', [$request->scheduled_start, $request->scheduled_end])
-                        ->orWhere(function ($q) use ($request) {
-                            $q->where('scheduled_start', '<', $request->scheduled_start)
-                                ->where('scheduled_end', '>', $request->scheduled_end);
-                        });
-                })->exists();
 
-            if ($isStaffBusy) {
-                return response()->json([
-                    'message' => 'พนักงานรายนี้ติดงานอื่นในช่วงเวลาดังกล่าว กรุณาเลือกคนอื่น'
-                ], 409); // 409 Conflict
-            }
-        }
+        // ✅ ลบ Logic เช็คพนักงานที่ซ้ำซ้อนออกไปแล้ว (Service จะจัดการให้เองทั้งหมด)
+
         try {
+            // ✅ ใช้ $validated ที่ได้จากด้านบนส่งเข้าไปได้เลย
             $booking = $this->bookingService->createBooking($validated);
-
+            
             return response()->json([
                 'message' => 'จองงานและมอบหมายพนักงานสำเร็จ',
                 'data' => $booking
@@ -56,8 +44,7 @@ class BookingController extends Controller
             return response()->json([
                 'message' => 'จองไม่สำเร็จ',
                 'error' => $e->getMessage()
-            ], 422); // 422 Unprocessable Entity
+            ], 422); 
         }
     }
-    
 }
