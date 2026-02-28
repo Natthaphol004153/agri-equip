@@ -36,7 +36,7 @@ class MaintenanceController extends Controller
             ->take(10)
             ->get();
             
-        // ✅ เพิ่มตรงนี้: ส่งข้อมูลรถไปหน้า Index ด้วย (เผื่อใช้ Modal หรือ Dropdown)
+        // ส่งข้อมูลรถไปหน้า Index ด้วย (เผื่อใช้ Modal หรือ Dropdown)
         $equipments = Equipment::where('current_status', 'available')->get();
 
         return view('admin.maintenance.index', compact('reportedIssues', 'needMaintenance', 'inMaintenance', 'history', 'equipments'));
@@ -98,7 +98,7 @@ class MaintenanceController extends Controller
             'maintenance_date' => now(),
             'description' => $request->description,
             'status' => 'in_progress',
-            'cost' => 0,
+            'total_cost' => 0, // ✅ แก้เป็น total_cost
         ]);
 
         // ล็อกรถ
@@ -118,7 +118,7 @@ class MaintenanceController extends Controller
             'equipment_id' => $equipment->id,
             'maintenance_date' => now(),
             'description' => $request->description ?? 'ตรวจเช็คตามระยะ (Auto Start)',
-            'cost' => 0,
+            'total_cost' => 0, // ✅ แก้เป็น total_cost
             'status' => 'in_progress'
         ]);
 
@@ -130,26 +130,32 @@ class MaintenanceController extends Controller
     // 7. จบงานซ่อม
     public function finish(Request $request, $id)
     {
+        // ✅ เปลี่ยน Validate ให้ตรงกับฟิลด์ใหม่
         $request->validate([
-            'cost' => 'required|numeric',
-            'technician_name' => 'nullable|string',
+            'total_cost' => 'required|numeric',
+            'service_provider' => 'nullable|string',
             'note' => 'nullable|string',
         ]);
 
         $log = MaintenanceLog::findOrFail($id);
+        
+        // ตรวจสอบว่ามีการเลือกรีเซ็ตชั่วโมงหรือไม่
+        $isReset = $request->has('reset_hours');
 
+        // ✅ อัปเดตข้อมูลด้วยคอลัมน์ใหม่
         $log->update([
             'completion_date' => now(),
-            'cost' => $request->cost,
-            'technician_name' => $request->technician_name,
+            'total_cost' => $request->total_cost,
+            'service_provider' => $request->service_provider,
             'description' => $log->description . ($request->note ? ' | จบงาน: ' . $request->note : ''),
+            'reset_counter' => $isReset, // ✅ บันทึกประวัติการรีเซ็ต
             'status' => 'completed'
         ]);
 
         // ปลดล็อกรถ
         $updateData = ['current_status' => 'available'];
         
-        if ($request->has('reset_hours')) {
+        if ($isReset) {
             $updateData['current_hours'] = 0;
         }
 

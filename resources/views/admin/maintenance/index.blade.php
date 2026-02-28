@@ -91,7 +91,7 @@
                                     <div class="w-full bg-gray-200 rounded-full h-1.5 w-24">
                                         <div class="bg-yellow-500 h-1.5 rounded-full" style="width: {{ min(100, ($eq->current_hours / ($eq->maintenance_hour_threshold ?: 1)) * 100) }}%"></div>
                                     </div>
-                                    <span class="text-xs font-bold text-red-600 whitespace-nowrap">{{ $eq->current_hours }}/{{ $eq->maintenance_hour_threshold }} ชม.</span>
+                                    <span class="text-xs font-bold text-red-600 whitespace-nowrap">{{ number_format($eq->current_hours, 1) }}/{{ $eq->maintenance_hour_threshold }} ชม.</span>
                                 </div>
                             </td>
                             <td class="px-6 py-4 text-right">
@@ -157,7 +157,7 @@
                              class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
                              x-transition.opacity>
                             
-                            <div @click.away="activeModal = null" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+                            <div @click.away="activeModal = null" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up text-left">
                                 <div class="bg-green-600 px-6 py-4 flex justify-between items-center text-white">
                                     <h5 class="font-bold text-lg"><i class="fa-solid fa-clipboard-check mr-2"></i> สรุปผลการซ่อม</h5>
                                     <button @click="activeModal = null" class="hover:bg-white/20 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
@@ -170,23 +170,29 @@
                                             <label class="block text-sm font-bold text-gray-700 mb-1">เครื่องจักร</label>
                                             <div class="bg-gray-100 px-3 py-2 rounded-lg text-gray-600 text-sm font-medium">{{ $log->equipment->name ?? '-' }}</div>
                                         </div>
+                                        
+                                        {{-- ✅ แก้ไข: เปลี่ยน name="cost" เป็น "total_cost" --}}
                                         <div>
                                             <label class="block text-sm font-bold text-gray-700 mb-1">ค่าใช้จ่ายทั้งหมด (บาท) *</label>
                                             <div class="relative">
                                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                                     <span class="text-gray-500">฿</span>
                                                 </div>
-                                                <input type="number" name="cost" required placeholder="0.00" class="pl-8 w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                                <input type="number" name="total_cost" required placeholder="0.00" min="0" step="0.01" class="pl-8 w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                             </div>
                                         </div>
+                                        
+                                        {{-- ✅ แก้ไข: เปลี่ยน name="technician_name" เป็น "service_provider" --}}
                                         <div>
                                             <label class="block text-sm font-bold text-gray-700 mb-1">ผู้ซ่อม/ชื่ออู่ (Repairer) *</label>
-                                            <input type="text" name="technician_name" required placeholder="เช่น ช่างสมชาย, อู่ช่างดำ" class="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                            <input type="text" name="service_provider" required placeholder="เช่น ช่างสมชาย, อู่ช่างดำ" class="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                         </div>
+                                        
                                         <div>
                                             <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียดการซ่อม (Note)</label>
                                             <textarea name="note" rows="2" placeholder="สิ่งที่ทำไป เช่น เปลี่ยนถ่ายน้ำมัน..." class="w-full border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"></textarea>
                                         </div>
+                                        
                                         <div class="bg-yellow-50 border border-yellow-100 p-3 rounded-lg flex items-start gap-3">
                                             <input type="checkbox" name="reset_hours" value="1" id="reset{{ $log->id }}" class="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500">
                                             <label for="reset{{ $log->id }}" class="text-sm text-gray-700 cursor-pointer">
@@ -230,6 +236,7 @@
                         <th class="px-6 py-3">เครื่องจักร</th>
                         <th class="px-6 py-3">ผู้ซ่อม</th>
                         <th class="px-6 py-3">รายการซ่อม</th>
+                        <th class="px-6 py-3 text-center">รีเซ็ตชั่วโมง</th> {{-- ✅ เพิ่มคอลัมน์ --}}
                         <th class="px-6 py-3 text-right">ค่าซ่อม</th>
                     </tr>
                 </thead>
@@ -238,18 +245,32 @@
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-6 py-4 text-gray-600">{{ \Carbon\Carbon::parse($h->completion_date)->format('d/m/Y') }}</td>
                             <td class="px-6 py-4 font-bold text-gray-800">{{ $h->equipment->name ?? '-' }}</td>
+                            
+                            {{-- ✅ ดึงข้อมูล service_provider --}}
                             <td class="px-6 py-4">
-                                @if(isset($h->technician_name))
-                                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">{{ $h->technician_name }}</span>
+                                @if(isset($h->service_provider))
+                                    <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold">{{ $h->service_provider }}</span>
                                 @else
                                     <span class="text-gray-300">-</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-gray-600 truncate max-w-xs">{{ Str::limit($h->description, 50) }}</td>
-                            <td class="px-6 py-4 text-right font-bold text-red-600">{{ number_format($h->cost) }} ฿</td>
+                            
+                            <td class="px-6 py-4 text-gray-600 truncate max-w-xs" title="{{ $h->description }}">{{ Str::limit($h->description, 50) }}</td>
+                            
+                            {{-- ✅ แสดงสถานะการรีเซ็ต --}}
+                            <td class="px-6 py-4 text-center">
+                                @if($h->reset_counter)
+                                    <span class="text-green-500 font-bold"><i class="fa-solid fa-check"></i></span>
+                                @else
+                                    <span class="text-gray-300">-</span>
+                                @endif
+                            </td>
+
+                            {{-- ✅ ดึงข้อมูล total_cost --}}
+                            <td class="px-6 py-4 text-right font-bold text-red-600">{{ number_format($h->total_cost, 2) }} ฿</td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-6 py-8 text-center text-gray-400">ยังไม่มีประวัติการซ่อม</td></tr>
+                        <tr><td colspan="6" class="px-6 py-8 text-center text-gray-400">ยังไม่มีประวัติการซ่อม</td></tr>
                     @endforelse
                 </tbody>
             </table>

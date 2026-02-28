@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory; // เผื่อใช้ Factory
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Booking extends Model
 {
@@ -20,12 +20,20 @@ class Booking extends Model
         'actual_start',
         'actual_end',
         'status',
+        
+        // --- 🌾 ส่วนข้อมูลพื้นที่ (ไร่) ---
+        'estimated_area',             // ✅ เพิ่ม: พื้นที่ประเมินเบื้องต้น
+        'actual_area',                // ✅ เพิ่ม: พื้นที่ที่ทำได้จริง
+        'price_per_rai_at_booking',    // ✅ บันทึกเรทราคา ณ วันที่จอง (Snapshot)
+
+        // --- 💰 ส่วนการเงินและการชำระเงิน ---
         'total_price',
         'deposit_amount',
         'payment_status',
-        'payment_method',      // ✅ ต้องมี
+        'payment_method',
         'payment_proof',
-        'payment_trans_ref',   // ✅ ต้องมี
+        'payment_trans_ref',
+        
         'image_path',
         'note'
     ];
@@ -37,6 +45,9 @@ class Booking extends Model
         'actual_end' => 'datetime',
         'deposit_amount' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'estimated_area' => 'decimal:2', // ✅ Cast ให้เป็นตัวเลขทศนิยม
+        'actual_area' => 'decimal:2',    // ✅ Cast ให้เป็นตัวเลขทศนิยม
+        'price_per_rai_at_booking' => 'decimal:2',
     ];
 
     // --- Relationships ---
@@ -54,6 +65,15 @@ class Booking extends Model
     public function assignedStaff() 
     {
         return $this->belongsTo(User::class, 'assigned_staff_id');
+    }
+
+    /**
+     * ✅ เพิ่ม: ความสัมพันธ์กับประวัติการซ่อมบำรุง
+     * กรณีรถเสียระหว่างทำงานนี้ (MaintenanceLog)
+     */
+    public function maintenanceLogs()
+    {
+        return $this->hasMany(MaintenanceLog::class);
     }
 
     public function activities()

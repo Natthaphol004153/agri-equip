@@ -13,22 +13,9 @@ class Customer extends Authenticatable
     use HasApiTokens, HasFactory, SoftDeletes, Notifiable;
     
     protected $fillable = [
-        'customer_code', 
-        'name', 
-        'phone', 
-        'address', 
-        'latitude', 
-        'longitude', 
-        'customer_type', 
-        'notes',
-        'password',
-        'tax_id',
-        'email',
-        'district',
-        'province',
-        'postal_code',
-        'profile_image' // ✅ เพิ่มบรรทัดนี้
-    ];
+    'customer_code', 'name', 'phone', 'address', 'province', 'district', 'postal_code',
+    'farm_area', 'latitude', 'longitude', 'customer_type', 'tax_id', 'password', 'profile_image'
+];
 
     protected $hidden = [
         'password',

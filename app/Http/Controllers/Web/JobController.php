@@ -86,14 +86,14 @@ class JobController extends Controller
 
     public function store(Request $request)
     {
-        // Validation สำหรับการสร้างงานโดยแอดมิน (อาจจะกรอกราคาเลยก็ได้)
+        // Validation สำหรับการสร้างงานโดยแอดมิน
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'equipment_id' => 'required|exists:equipment,id',
             'assigned_staff_id' => 'nullable|exists:users,id',
             'scheduled_start' => 'required|date',
             'scheduled_end' => 'required|date|after:scheduled_start',
-            'total_price' => 'required|numeric|min:0',
+            'actual_area' => 'required|numeric|min:0.1', // ✅ บังคับกรอกพื้นที่
             'deposit_amount' => 'nullable|numeric|min:0',
             'payment_proof' => 'nullable|image|max:5120',
             'payment_method' => 'nullable|in:transfer,cash',
@@ -102,9 +102,16 @@ class JobController extends Controller
         try {
             $data = $request->only([
                 'customer_id', 'equipment_id', 'assigned_staff_id',
-                'scheduled_start', 'scheduled_end', 'total_price',
+                'scheduled_start', 'scheduled_end', 'actual_area',
                 'deposit_amount', 'payment_method'
             ]);
+
+            // ✅ 1. ดึงเรทราคาเครื่องจักรมาคำนวณฝั่ง Server
+            $equipment = Equipment::findOrFail($request->equipment_id);
+            $pricePerRai = $equipment->price_per_rai ?? 0;
+
+            $data['price_per_rai_at_booking'] = $pricePerRai; // Snapshot ราคา
+            $data['total_price'] = $request->actual_area * $pricePerRai; // คำนวณยอดเงิน
 
             // ถ้าแอดมินสร้างเองและใส่ยอดมัดจำ > 0 ให้ถือว่าจ่ายมัดจำแล้ว
             $data['payment_status'] = ($request->deposit_amount > 0) ? 'deposit_paid' : 'pending';
@@ -134,7 +141,7 @@ class JobController extends Controller
 
     /**
      * 🟢 อัปเดตข้อมูลงาน (Update)
-     * - รองรับการแก้ราคาและมัดจำโดยแอดมิน
+     * - รองรับการแก้พื้นที่ ราคา และมัดจำโดยแอดมิน
      */
     public function update(Request $request, $id)
     {
@@ -149,20 +156,22 @@ class JobController extends Controller
         // กรณี 2: แก้ไขข้อมูลเต็มรูปแบบ (Full Edit)
         $request->validate([
             'status' => 'required',
+            'actual_area' => 'nullable|numeric|min:0.1', // ✅ รับค่าพื้นที่ทำจริง
             'total_price' => 'nullable|numeric|min:0',
             'deposit_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:transfer,cash', // ✅ เพิ่ม: รองรับเงินสด/โอน
-            'payment_proof' => 'nullable|image|max:5120',    // ✅ เพิ่ม: รองรับรูปสลิป
+            'payment_method' => 'nullable|in:transfer,cash', 
+            'payment_proof' => 'nullable|image|max:5120',    
         ]);
 
         // เตรียมข้อมูลที่จะอัปเดต
         $updateData = [
             'status' => $request->status,
-            'total_price' => $request->total_price ?? $job->total_price,
+            'actual_area' => $request->actual_area ?? $job->actual_area, // ✅ อัปเดตพื้นที่
+            'total_price' => $request->total_price ?? $job->total_price, // แอดมินอาจจะแก้ราคาเองจากหน้าเว็บ
             'deposit_amount' => $request->deposit_amount ?? $job->deposit_amount,
             'assigned_staff_id' => $request->assigned_staff_id,
             'note' => $request->note,
-            'payment_method' => $request->payment_method, // ✅ บันทึกวิธีชำระเงิน
+            'payment_method' => $request->payment_method, 
         ];
 
         // 🟢 ถ้ามีการแนบสลิปใหม่ (กรณีโอนเงิน)
@@ -175,7 +184,7 @@ class JobController extends Controller
         if ($request->status == 'completed') {
             // ถ้าแอดมินเลือกจ่ายแบบ "เงินสด" หรือ "โอนและมีสลิปแล้ว" -> ถือว่าจ่ายครบแล้ว
             if ($request->payment_method == 'cash' || $job->payment_proof || $request->hasFile('payment_proof')) {
-                $updateData['payment_status'] = 'paid'; // ✅ ปรับสถานะการเงินเป็น "จ่ายแล้ว"
+                $updateData['payment_status'] = 'paid'; 
             }
         }
 
@@ -190,18 +199,10 @@ class JobController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * ✅ เพิ่มใหม่: อนุมัติการจอง (เพื่อให้ลูกค้าจ่ายเงินได้)
-     */
     public function approveBooking($id)
     {
         $booking = Booking::findOrFail($id);
-        
-        // เปลี่ยนสถานะเป็น scheduled (เพื่อให้ลูกค้าเห็นปุ่มจ่ายเงิน)
-        $booking->update([
-            'status' => 'scheduled' 
-        ]);
-
+        $booking->update(['status' => 'scheduled']);
         return back()->with('success', 'อนุมัติงานเรียบร้อยแล้ว ลูกค้าสามารถชำระเงินได้ทันที');
     }
 
@@ -244,7 +245,7 @@ class JobController extends Controller
         $equipmentId = $request->equipment_id;
 
         $query = Booking::whereDate('scheduled_start', $date)
-            ->where('status', '!=', 'cancelled'); // แก้คำผิด canceled -> cancelled
+            ->where('status', '!=', 'cancelled');
 
         if ($equipmentId) {
             $query->where('equipment_id', $equipmentId);
@@ -265,7 +266,6 @@ class JobController extends Controller
     public function receipt($id)
     {
         $booking = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
-
         $net_total = $booking->total_price - $booking->deposit_amount;
         $baht_text = $this->baht_text($net_total);
 

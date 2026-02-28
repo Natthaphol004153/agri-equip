@@ -13,9 +13,9 @@
         </a>
 
         <div class="flex gap-2">
-            @if (in_array($job->status, ['scheduled', 'in_progress']))
+            @if (in_array($job->status, ['scheduled', 'in_progress', 'completed_pending_approval']))
                 <a href="{{ route('admin.jobs.edit', $job->id) }}" class="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-50 hover:text-orange-500 transition shadow-sm font-medium">
-                    <i class="fa-solid fa-pen"></i> แก้ไข
+                    <i class="fa-solid fa-pen"></i> แก้ไขงาน
                 </a>
             @endif
 
@@ -61,11 +61,12 @@
 
                     @php
                         $statusConfig = match ($job->status) {
-                            'scheduled' => ['color' => 'gray', 'label' => 'นัดหมายแล้ว', 'icon' => 'fa-calendar-check'],
+                            'pending' => ['color' => 'gray', 'label' => 'รออนุมัติ', 'icon' => 'fa-clock'],
+                            'scheduled' => ['color' => 'blue', 'label' => 'นัดหมายแล้ว', 'icon' => 'fa-calendar-check'],
                             'in_progress' => ['color' => 'purple', 'label' => 'กำลังดำเนินการ', 'icon' => 'fa-spinner fa-spin'],
-                            'completed_pending_approval' => ['color' => 'orange', 'label' => 'รอตรวจสอบ', 'icon' => 'fa-clipboard-check'],
+                            'completed_pending_approval' => ['color' => 'orange', 'label' => 'รอตรวจสอบเงิน', 'icon' => 'fa-clipboard-check'],
                             'completed' => ['color' => 'green', 'label' => 'เสร็จสมบูรณ์', 'icon' => 'fa-circle-check'],
-                            'canceled' => ['color' => 'red', 'label' => 'ยกเลิก', 'icon' => 'fa-ban'],
+                            'cancelled' => ['color' => 'red', 'label' => 'ยกเลิก', 'icon' => 'fa-ban'],
                             default => ['color' => 'gray', 'label' => $job->status, 'icon' => 'fa-circle'],
                         };
                         $c = $statusConfig['color'];
@@ -187,30 +188,47 @@
         {{-- 👉 RIGHT COLUMN: การเงิน & รูปภาพ --}}
         <div class="space-y-6">
 
-            {{-- Financial Summary --}}
+            {{-- Financial & Area Summary --}}
             <div class="bg-white p-6 rounded-2xl shadow-lg shadow-agri-primary/5 border border-agri-primary/20 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-green-400 to-agri-primary"></div>
 
                 <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-coins text-yellow-500"></i> สรุปยอดเงิน
+                    <i class="fa-solid fa-coins text-yellow-500"></i> สรุปพื้นที่และยอดเงิน
                 </h3>
 
                 <div class="space-y-3 text-sm">
-                    <div class="flex justify-between text-gray-600">
-                        <span>ราคาประเมิน</span>
-                        <span class="font-medium">{{ number_format($job->total_price, 2) }} ฿</span>
+                    {{-- ✅ ข้อมูลพื้นที่ --}}
+                    <div class="flex justify-between text-gray-500">
+                        <span>พื้นที่ประเมิน (Estimated)</span>
+                        <span>{{ number_format($job->estimated_area ?? 0, 1) }} ไร่</span>
                     </div>
-                    <div class="flex justify-between text-red-500">
-                        <span>หักมัดจำ</span>
-                        <span>-{{ number_format($job->deposit_amount, 2) }} ฿</span>
+                    <div class="flex justify-between text-green-800 font-bold bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                        <span>พื้นที่ทำจริง (Actual Area)</span>
+                        <span class="text-green-700">{{ number_format($job->actual_area ?? $job->estimated_area, 1) }} ไร่</span>
                     </div>
-                    <div class="border-t border-gray-100 my-2 pt-2">
+                    <div class="flex justify-between text-gray-500">
+                        <span>เรทราคาเครื่องจักร</span>
+                        <span>{{ number_format($job->price_per_rai_at_booking ?? 0, 2) }} ฿/ไร่</span>
+                    </div>
+
+                    <div class="border-t border-gray-100 my-3 pt-3">
+                        <div class="flex justify-between text-gray-600">
+                            <span>รวมเป็นเงิน</span>
+                            <span class="font-medium">{{ number_format($job->total_price, 2) }} ฿</span>
+                        </div>
+                        <div class="flex justify-between text-red-500 mt-1">
+                            <span>หักมัดจำ</span>
+                            <span>-{{ number_format($job->deposit_amount, 2) }} ฿</span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-100 mt-2 pt-3">
                         <div class="flex justify-between items-end">
-                            <span class="font-bold text-gray-800">ยอดสุทธิ</span>
+                            <span class="font-bold text-gray-800">ยอดชำระสุทธิ</span>
                             <span class="text-2xl font-bold text-agri-primary">{{ number_format($job->total_price - $job->deposit_amount, 2) }} ฿</span>
                         </div>
                     </div>
-                    <div class="flex justify-between text-gray-600">
+                    <div class="flex justify-between text-gray-600 pt-2">
                         <span>วิธีชำระเงิน</span>
                         @php
                             $paymentMethodLabel = match ($job->payment_method) {
@@ -219,12 +237,12 @@
                                 default => '-'
                             };
                         @endphp
-                        <span class="font-medium">{{ $paymentMethodLabel }}</span>
+                        <span class="font-medium bg-gray-100 px-2 py-0.5 rounded">{{ $paymentMethodLabel }}</span>
                     </div>
                 </div>
 
                 @if ($job->status == 'completed')
-                    <div class="mt-4 bg-green-50 text-green-700 text-center py-2 rounded-lg text-xs font-bold border border-green-100">
+                    <div class="mt-5 bg-green-50 text-green-700 text-center py-2.5 rounded-xl text-sm font-bold border border-green-200">
                         <i class="fa-solid fa-check-circle"></i> ชำระเงินครบถ้วน
                     </div>
                 @endif
@@ -252,13 +270,13 @@
                         @endif
                     </div>
 
-                    {{-- 🔥 หลักฐานการเงิน (มี Check ว่าจ่ายมัดจำแล้วหรือยัง) --}}
+                    {{-- 🔥 หลักฐานการเงิน --}}
                     <div>
                         <div class="flex justify-between items-end mb-2">
                             <p class="text-xs text-gray-400">💸 หลักฐานการชำระเงิน</p>
-                            @if($job->deposit_amount > 0 && $job->payment_status == 'deposit_paid')
+                            @if($job->deposit_amount > 0 && $job->status != 'completed')
                                 <span class="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold border border-orange-200">
-                                    <i class="fa-solid fa-check"></i> มัดจำแล้ว
+                                    <i class="fa-solid fa-check"></i> มีมัดจำ
                                 </span>
                             @endif
                         </div>
@@ -275,8 +293,6 @@
                                 <div class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition">
                                     <i class="fa-solid fa-magnifying-glass text-white"></i>
                                 </div>
-                                
-                                {{-- Badge บอกประเภทสลิป --}}
                                 <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] py-1 px-2 text-center backdrop-blur-sm">
                                     @if($job->status == 'completed')
                                         สลิปปิดงาน (Final Payment)
@@ -287,7 +303,7 @@
                             </a>
                         @else
                             <div class="h-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 text-xs">
-                                <i class="fa-solid fa-file-invoice-dollar mb-1"></i> ไม่มีหลักฐาน
+                                <i class="fa-solid fa-file-invoice-dollar mb-1"></i> ไม่มีหลักฐานโอน
                             </div>
                         @endif
                     </div>

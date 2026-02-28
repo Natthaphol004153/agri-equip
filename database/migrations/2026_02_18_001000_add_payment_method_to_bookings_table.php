@@ -4,13 +4,15 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
-        Schema::table('bookings', function (Blueprint $table) {
-            $table->enum('payment_method', ['transfer', 'cash'])->nullable()->after('payment_status');
-        });
+        // เช็คก่อนว่าในตาราง bookings มีคอลัมน์ payment_method หรือยัง
+        if (!Schema::hasColumn('bookings', 'payment_method')) {
+            Schema::table('bookings', function (Blueprint $table) {
+                $table->enum('payment_method', ['transfer', 'cash'])->nullable()->after('payment_status');
+            });
+        }
     }
 
     public function down(): void
@@ -19,4 +21,5 @@ return new class extends Migration
             $table->dropColumn('payment_method');
         });
     }
+
 };

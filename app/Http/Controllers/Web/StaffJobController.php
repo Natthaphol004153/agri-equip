@@ -68,7 +68,8 @@ class StaffJobController extends Controller
         if ($balance > 0 && $promptPayNo) {
             try {
                 $qrData = PromptPayService::generatePayload($promptPayNo, $balance);
-            } catch (\Exception $e) { }
+            } catch (\Exception $e) {
+            }
         }
 
         return view('staff.jobs.show', compact('job', 'qrData', 'balance'));
@@ -100,7 +101,7 @@ class StaffJobController extends Controller
         return back()->with('success', 'บันทึกเวลาเริ่มงานเรียบร้อย');
     }
 
-   public function finishWork(Request $request, $id)
+    public function finishWork(Request $request, $id)
     {
         Log::info("Job Finish Process Initiated: Job ID {$id}");
 
@@ -109,12 +110,24 @@ class StaffJobController extends Controller
             ->where('assigned_staff_id', Auth::id())
             ->firstOrFail();
 
-        $balance = $job->total_price - $job->deposit_amount;
+        // 🚩 แก้ไขจุดที่ 1: เติมค่า actual_area เข้าไปใน Request object เลย 
+        // หากพนักงานไม่ได้กรอกมา (ค่าว่าง) ให้ดึงค่าพื้นที่ประเมินจากฐานข้อมูลมาใส่แทนอัตโนมัติ
+        $request->merge([
+            'actual_area' => $request->input('actual_area') ?: ($job->estimated_area ?? 0)
+        ]);
 
-        $isAlreadyPaid = in_array($job->payment_status, ['paid', 'pending_approval']) || 
-                         ($job->payment_status == 'deposit_paid' && $balance <= 0);
+        // 🟢 คำนวณราคาใหม่เพื่อเช็คยอดคงเหลือ
+        $actualArea = $request->actual_area;
+        $pricePerRai = $job->price_per_rai_at_booking ?? ($job->equipment->price_per_rai ?? 0);
+        $newTotalPrice = $actualArea * $pricePerRai;
+        $balance = $newTotalPrice - $job->deposit_amount;
 
+        $isAlreadyPaid = in_array($job->payment_status, ['paid', 'pending_approval']) ||
+            ($job->payment_status == 'deposit_paid' && $balance <= 0);
+
+        // 🟢 2. Validate ข้อมูล (ตอนนี้ 'actual_area' จะไม่ว่างแล้วเพราะเรา merge ไว้ข้างบน)
         $rules = [
+            'actual_area' => 'required|numeric|min:0.1',
             'job_image' => 'required|image|max:10240',
             'note' => 'nullable|string',
         ];
@@ -129,10 +142,13 @@ class StaffJobController extends Controller
         $request->validate($rules);
 
         $endTime = Carbon::now();
-        
+
+        // 🟢 3. อัปเดตข้อมูล
         $updateData = [
             'status' => 'completed_pending_approval',
             'actual_end' => $endTime,
+            'actual_area' => $actualArea,
+            'total_price' => $newTotalPrice,
             'note' => $request->note,
         ];
 
@@ -140,10 +156,10 @@ class StaffJobController extends Controller
             $updateData['image_path'] = $request->file('job_image')->store('job_evidence', 'public');
         }
 
-        if (!$isAlreadyPaid) {
-            $updateData['payment_status'] = 'paid'; 
+        if (!$isAlreadyPaid && $balance > 0) {
+            $updateData['payment_status'] = 'paid';
             $updateData['payment_method'] = $request->payment_method;
-            
+
             if ($request->hasFile('payment_proof')) {
                 $updateData['payment_proof'] = $request->file('payment_proof')->store('payments', 'public');
             }
@@ -151,16 +167,7 @@ class StaffJobController extends Controller
 
         $job->update($updateData);
 
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'บันทึกข้อมูลเสร็จสิ้น',
-                'job_id' => $job->id,
-                'new_status' => 'completed'
-            ]);
-        }
-
-        return back()->with('success', "บันทึกข้อมูลเรียบร้อยแล้ว");
+        return redirect()->route('staff.jobs.index')->with('success', "บันทึกข้อมูลเรียบร้อยแล้ว");
     }
 
     public function history()
@@ -169,7 +176,7 @@ class StaffJobController extends Controller
             ->where('assigned_staff_id', Auth::id())
             ->whereIn('status', ['completed', 'completed_pending_approval'])
             ->latest('actual_end')
-            ->paginate(15); 
+            ->paginate(15);
 
         return view('staff.jobs.history', compact('historyJobs'));
     }
@@ -177,7 +184,7 @@ class StaffJobController extends Controller
     public function dashboard()
     {
         $userId = Auth::id();
-        
+
         $counts = [
             'in_progress' => Booking::where('assigned_staff_id', $userId)->where('status', 'in_progress')->count(),
             'scheduled' => Booking::where('assigned_staff_id', $userId)->where('status', 'scheduled')->count(),
@@ -197,7 +204,7 @@ class StaffJobController extends Controller
                             ->whereDate('scheduled_start', Carbon::today());
                     });
             })
-            ->orderByRaw("FIELD(status, 'in_progress', 'scheduled')") 
+            ->orderByRaw("FIELD(status, 'in_progress', 'scheduled')")
             ->orderBy('scheduled_start', 'asc')
             ->limit(10)
             ->get();
@@ -221,10 +228,10 @@ class StaffJobController extends Controller
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
             'description' => $request->description,
-            'image_url' => $imagePath, 
+            'image_url' => $imagePath,
             'maintenance_date' => now(),
             'status' => 'pending',
-            'total_cost' => 0 
+            'total_cost' => 0
         ]);
 
         Equipment::where('id', $request->equipment_id)->update(['current_status' => 'maintenance']);
@@ -255,6 +262,17 @@ class StaffJobController extends Controller
 
     public function reportIssue(Request $request, $jobId)
     {
-        return $this->reportGeneral($request);
+        // สร้าง Log แจ้งซ่อมและเปลี่ยนสถานะเครื่องจักร
+        $this->reportGeneral($request);
+
+        // โน้ตลงในตัวงานด้วยว่ามีการแจ้งขัดข้อง
+        $job = Booking::find($jobId);
+        if ($job) {
+            $job->update([
+                'note' => ltrim($job->note . ' | [แจ้งเหตุขัดข้อง]: ' . $request->description, ' | ')
+            ]);
+        }
+
+        return back()->with('success', 'แจ้งซ่อมเรียบร้อย โปรดรอแอดมินติดต่อกลับ');
     }
 }

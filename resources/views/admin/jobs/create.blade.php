@@ -46,9 +46,10 @@
                             <div class="relative w-full">
                                 <select id="customer_select" name="customer_id" class="w-full" required
                                     placeholder="ค้นหา หรือ เลือกรายชื่อ...">
-                                    <option value="">-- เลือกลูกค้า --</option>
+                                    <option value="" data-area="0">-- เลือกลูกค้า --</option>
                                     @foreach ($customers as $customer)
-                                        <option value="{{ $customer->id }}"
+                                        {{-- ✅ เพิ่ม data-area เก็บไร่ของลูกค้า --}}
+                                        <option value="{{ $customer->id }}" data-area="{{ $customer->farm_area ?? 0 }}"
                                             {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
                                             {{ $customer->name }} ({{ $customer->phone }})
                                         </option>
@@ -73,12 +74,12 @@
                                 <select name="equipment_id" id="equipment_select"
                                     class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none bg-gray-50/50"
                                     required>
-                                    <option value="">-- เลือกเครื่องจักร --</option>
+                                    <option value="" data-price="0">-- เลือกเครื่องจักร --</option>
                                     @foreach ($equipments as $eq)
-                                        <option value="{{ $eq->id }}"
+                                        {{-- ✅ เพิ่ม data-price เก็บเรทราคาต่อไร่ และแสดงให้ผู้ใช้เห็น --}}
+                                        <option value="{{ $eq->id }}" data-price="{{ $eq->price_per_rai ?? 0 }}"
                                             {{ old('equipment_id') == $eq->id ? 'selected' : '' }}>
-                                            {{ $eq->name }}
-                                            ({{ $eq->registration_number ?? $eq->equipment_code }})
+                                            {{ $eq->name }} (เรท {{ number_format($eq->price_per_rai ?? 0, 0) }} บ./ไร่)
                                         </option>
                                     @endforeach
                                 </select>
@@ -110,7 +111,7 @@
                     <h3 class="font-bold text-gray-800 text-lg mb-6 flex items-center gap-2">
                         <span
                             class="w-8 h-8 rounded-full bg-agri-primary text-white flex items-center justify-center text-sm">2</span>
-                        กำหนดการและราคา
+                        กำหนดการและพื้นที่
                     </h3>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
@@ -130,6 +131,25 @@
                         </div>
                     </div>
 
+                    {{-- ✅ เพิ่มส่วนกรอกพื้นที่ (ไร่) --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">พื้นที่ประเมิน (ไร่) 
+                                <span class="text-xs text-gray-400 font-normal">(อ้างอิงจากลูกค้า)</span>
+                            </label>
+                            <input type="number" name="estimated_area" id="estimated_area"
+                                class="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-100 text-gray-500 outline-none cursor-not-allowed"
+                                value="{{ old('estimated_area', 0) }}" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-agri-primary mb-1.5">พื้นที่ทำจริง (ไร่) <span
+                                    class="text-red-500">*</span></label>
+                            <input type="number" name="actual_area" id="actual_area" step="0.1" min="0.1"
+                                class="w-full px-4 py-2 rounded-lg border border-agri-primary/30 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none font-bold text-gray-800"
+                                value="{{ old('actual_area') }}" required placeholder="จำนวนไร่">
+                        </div>
+                    </div>
+
                     {{-- ส่วนการเงินและมัดจำ (Alpine.js) --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8" x-data="{ method: 'transfer' }">
                         {{-- 1. ราคาประเมินรวม --}}
@@ -138,11 +158,12 @@
                                     class="text-red-500">*</span></label>
                             <div class="relative">
                                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">฿</span>
-                                <input type="number" name="total_price"
-                                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none font-bold text-gray-800 text-lg"
-                                    placeholder="0.00" min="0" step="0.01" value="{{ old('total_price') }}"
-                                    required>
+                                {{-- ✅ ปรับช่อง Total Price เป็น Readonly เพราะให้ JS คำนวณ --}}
+                                <input type="number" name="total_price" id="total_price"
+                                    class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-gray-100 outline-none font-bold text-gray-800 text-lg cursor-not-allowed"
+                                    placeholder="0.00" value="{{ old('total_price', '0.00') }}" readonly>
                             </div>
+                            <p class="text-xs text-gray-400 mt-1"><i class="fa-solid fa-calculator"></i> ระบบคำนวณอัตโนมัติ (พื้นที่จริง × เรทเครื่องจักร)</p>
                         </div>
 
                         {{-- 2. ยอดมัดจำ + อัปโหลดสลิป --}}
@@ -230,14 +251,11 @@
 
     {{-- Alpine.js for interactivity --}}
     <script src="//unpkg.com/alpinejs" defer></script>
-
-    {{-- ✅ 1. เพิ่ม SweetAlert2 CDN --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
-            // ✅ 2. เพิ่มส่วนตรวจสอบ Session Success เพื่อแสดง SweetAlert
             @if (session('success'))
                 Swal.fire({
                     icon: 'success',
@@ -263,9 +281,46 @@
                 });
             @endif
 
-            const dateInput = document.getElementById('scheduled_start');
+            // ==========================================
+            // ✅ ระบบคำนวณราคาและดึงข้อมูลไร่ลูกค้า
+            // ==========================================
+            const customerSelect = document.getElementById('customer_select');
             const equipmentSelect = document.getElementById('equipment_select');
+            const estimatedAreaInput = document.getElementById('estimated_area');
+            const actualAreaInput = document.getElementById('actual_area');
+            const totalPriceInput = document.getElementById('total_price');
 
+            // ฟังก์ชันคำนวณราคา (ไร่จริง x เรทเครื่องจักร)
+            function calculateTotalPrice() {
+                const eqOption = equipmentSelect.options[equipmentSelect.selectedIndex];
+                const pricePerRai = parseFloat(eqOption.getAttribute('data-price')) || 0;
+                const actualArea = parseFloat(actualAreaInput.value) || 0;
+                
+                const total = pricePerRai * actualArea;
+                totalPriceInput.value = total.toFixed(2);
+            }
+
+            // เมื่อเลือกลูกค้า -> ดึงจำนวนไร่มาใส่ในช่อง
+            customerSelect.addEventListener('change', function() {
+                const cusOption = customerSelect.options[customerSelect.selectedIndex];
+                const farmArea = cusOption.getAttribute('data-area') || 0;
+                
+                estimatedAreaInput.value = farmArea;
+                // อัปเดตช่องไร่จริงให้อัตโนมัติ (แต่ผู้ใช้แก้ได้)
+                actualAreaInput.value = farmArea;
+                
+                calculateTotalPrice();
+            });
+
+            // เมื่อเลือกเครื่องจักร หรือ เปลี่ยนจำนวนไร่ -> คำนวณราคาใหม่
+            equipmentSelect.addEventListener('change', calculateTotalPrice);
+            actualAreaInput.addEventListener('input', calculateTotalPrice);
+
+            // ==========================================
+            // ระบบตรวจสอบตารางงานเดิม (Calendar API)
+            // ==========================================
+            const dateInput = document.getElementById('scheduled_start');
+            
             function loadSchedule() {
                 const dateVal = dateInput.value;
                 const equipmentVal = equipmentSelect.value;

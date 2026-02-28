@@ -22,6 +22,7 @@ class Equipment extends Model
         'maintenance_hour_threshold',
         'hourly_rate',
         'current_status',
+        'price_per_rai', // ✅ เพิ่มฟิลด์ราคาต่อไร่
         'image_path'
     ];
 

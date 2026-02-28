@@ -24,9 +24,11 @@
         </div>
 
         <div class="p-6 md:p-8">
-            {{-- 🔥 Form Start: เพิ่ม enctype --}}
+            {{-- 🔥 Form Start พร้อมตัวแปร Alpine.js คำนวณไร่ --}}
             <form action="{{ route('admin.jobs.update', $job->id) }}" method="POST" enctype="multipart/form-data" 
                   x-data="{ 
+                      rate: {{ $job->price_per_rai_at_booking ?? 0 }},
+                      actualArea: {{ $job->actual_area ?? ($job->estimated_area ?? 0) }},
                       total: {{ $job->total_price ?? 0 }}, 
                       deposit: {{ $job->deposit_amount ?? 0 }},
                       paymentMethod: '{{ $job->payment_method ?? 'transfer' }}' 
@@ -49,13 +51,24 @@
                                 </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">เครื่องจักร</label>
-                            <div class="bg-gray-50 text-gray-700 px-4 py-3 rounded-xl border border-gray-200 flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-100 text-gray-400 shadow-sm">
-                                    <i class="fa-solid fa-tractor"></i>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">เครื่องจักร</label>
+                                <div class="bg-gray-50 text-gray-700 px-4 py-3 rounded-xl border border-gray-200 flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-gray-100 text-gray-400 shadow-sm shrink-0">
+                                        <i class="fa-solid fa-tractor"></i>
+                                    </div>
+                                    <span class="font-medium text-sm truncate">{{ $job->equipment->name }}</span>
                                 </div>
-                                <span class="font-medium text-sm">{{ $job->equipment->name }}</span>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">พื้นที่ประเมิน (ไร่)</label>
+                                <div class="bg-gray-50 text-gray-700 px-4 py-3 rounded-xl border border-gray-200 flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-gray-100 text-green-500 shadow-sm shrink-0">
+                                        <i class="fa-solid fa-map"></i>
+                                    </div>
+                                    <span class="font-bold text-sm">{{ number_format($job->estimated_area ?? 0, 1) }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -87,41 +100,52 @@
                     <div class="flex-grow border-t border-gray-200"></div>
                 </div>
 
-                {{-- 🟡 SECTION 2: การเงินและปิดงาน --}}
+                {{-- 🟡 SECTION 2: พื้นที่, การเงิน และปิดงาน --}}
                 <div class="bg-yellow-50/50 rounded-2xl p-6 border border-yellow-100 mb-8">
                     <h4 class="font-bold text-yellow-800 mb-4 flex items-center gap-2 text-lg">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> สรุปยอดและชำระเงิน
+                        <i class="fa-solid fa-file-invoice-dollar"></i> สรุปพื้นที่และยอดเงิน
                     </h4>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        {{-- 1. ราคารวม (แก้ไขได้) --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        {{-- 1. พื้นที่ทำจริง --}}
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">พื้นที่ทำจริง (ไร่) <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <input type="number" name="actual_area" x-model="actualArea" @input="total = (actualArea * rate).toFixed(2)" step="0.1" min="0" required
+                                       class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/50 shadow-sm font-bold text-green-700 bg-white">
+                                <span class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400 font-medium">ไร่</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1">เรท: <span x-text="rate"></span> บ./ไร่</p>
+                        </div>
+
+                        {{-- 2. ราคารวม --}}
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">ราคารวม (บาท)</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 font-bold">฿</span>
-                                <input type="number" name="total_price" x-model="total" step="0.01" min="0"
+                                <input type="number" name="total_price" x-model="total" step="0.01" min="0" required
                                        class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-yellow-400/50 shadow-sm font-bold text-gray-800">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">ปรับยอดเพิ่มได้ (เช่น ค่าน้ำมัน, OT)</p>
+                            <p class="text-[11px] text-gray-500 mt-1">สามารถพิมพ์แก้ยอดเงินเองได้</p>
                         </div>
 
-                        {{-- 2. มัดจำ --}}
+                        {{-- 3. มัดจำ --}}
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">หักมัดจำแล้ว</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">หักมัดจำ</label>
                             <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 font-bold">฿</span>
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-red-400 font-bold">฿</span>
                                 <input type="number" name="deposit_amount" x-model="deposit" step="0.01" min="0" readonly
-                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 shadow-sm cursor-not-allowed">
+                                       class="w-full pl-8 pr-3 py-3 rounded-xl border border-red-100 bg-red-50 text-red-500 shadow-sm cursor-not-allowed font-medium">
                             </div>
                         </div>
 
-                        {{-- 3. ยอดคงเหลือ --}}
+                        {{-- 4. ยอดคงเหลือ --}}
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ยอดคงเหลือที่ต้องเก็บ</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">ยอดเก็บสุทธิ</label>
                             <div class="relative">
-                                <div class="w-full px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-600 font-bold text-lg flex justify-between items-center shadow-inner">
+                                <div class="w-full px-4 py-3 rounded-xl border border-agri-primary/20 bg-green-50 text-agri-primary font-black text-lg flex justify-between items-center shadow-inner">
                                     <span>฿</span>
-                                    <span x-text="(total - deposit).toLocaleString('th-TH', {minimumFractionDigits: 2})"></span>
+                                    <span x-text="Math.max(0, total - deposit).toLocaleString('th-TH', {minimumFractionDigits: 2})"></span>
                                 </div>
                             </div>
                         </div>
@@ -152,7 +176,7 @@
                             <input type="file" name="payment_proof" accept="image/*" 
                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
                             @if($job->payment_proof)
-                                <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check-circle"></i> มีหลักฐานเดิมแล้ว (แนบใหม่เพื่อเปลี่ยน)</p>
+                                <p class="text-xs text-green-600 mt-1"><i class="fa-solid fa-check-circle"></i> มีหลักฐานเดิมแล้ว (แนบไฟล์ใหม่หากต้องการเปลี่ยน)</p>
                             @endif
                         </div>
 
@@ -161,7 +185,7 @@
                             <i class="fa-solid fa-circle-info mt-0.5"></i>
                             <div>
                                 <p class="font-bold">รับชำระด้วยเงินสด</p>
-                                <p class="text-xs">ระบบจะบันทึกสถานะการเงินเป็น "จ่ายแล้ว (Paid)" ทันทีที่บันทึกจบงาน</p>
+                                <p class="text-xs">ระบบจะบันทึกการเงินว่าชำระครบถ้วนเมื่อกดบันทึก</p>
                             </div>
                         </div>
                     </div>
@@ -171,11 +195,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-2">อัปเดตสถานะงาน <span class="text-red-500">*</span></label>
-                        <select name="status" class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 bg-white shadow-sm cursor-pointer">
-                            <option value="pending" {{ $job->status == 'pending' ? 'selected' : '' }}>⏳ รอตรวจสอบ</option>
-                            <option value="scheduled" {{ $job->status == 'scheduled' ? 'selected' : '' }}>✅ อนุมัติ / รอชำระเงิน</option>
+                        <select name="status" class="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 bg-white shadow-sm cursor-pointer font-medium">
+                            <option value="pending" {{ $job->status == 'pending' ? 'selected' : '' }}>⏳ รออนุมัติ</option>
+                            <option value="scheduled" {{ $job->status == 'scheduled' ? 'selected' : '' }}>✅ อนุมัติ / รอเริ่มงาน</option>
                             <option value="in_progress" {{ $job->status == 'in_progress' ? 'selected' : '' }}>🚜 กำลังดำเนินการ</option>
-                            <option value="completed" {{ $job->status == 'completed' ? 'selected' : '' }}>🎉 เสร็จสิ้น (ปิดงาน)</option>
+                            <option value="completed_pending_approval" {{ $job->status == 'completed_pending_approval' ? 'selected' : '' }}>🧐 รอตรวจสอบเงิน</option>
+                            <option value="completed" {{ $job->status == 'completed' ? 'selected' : '' }}>🎉 เสร็จสิ้น (ปิดงานสมบูรณ์)</option>
                             <option value="cancelled" {{ $job->status == 'cancelled' ? 'selected' : '' }}>❌ ยกเลิก</option>
                         </select>
                     </div>

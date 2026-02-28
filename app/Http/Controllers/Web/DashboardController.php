@@ -17,19 +17,13 @@ class DashboardController extends Controller
     public function index()
     {
         // ------------------------------------------------------------------
-        // 1. Financial Overview (การเงินภาพรวม)
+        // 1. Financial Overview (การเงินภาพรวม) - *เก็บไว้เผื่อใช้หน้า Report
         // ------------------------------------------------------------------
         $totalIncome = Booking::where('status', 'completed')->sum('total_price');
-
-        // ✅ แก้ไข: เปลี่ยน cost -> total_cost
         $maintenanceCost = MaintenanceLog::sum('total_cost'); 
-        
         $fuelPurchaseCost = FuelPurchase::sum('total_cost'); 
-        
         $totalExpense = $maintenanceCost + $fuelPurchaseCost;
         $netProfit = $totalIncome - $totalExpense;
-        
-        // คำนวณยอดซื้อน้ำมันเดือนนี้ (สำหรับแสดงแยก)
         $fuelCostThisMonth = FuelPurchase::whereMonth('purchase_date', Carbon::now()->month)
             ->whereYear('purchase_date', Carbon::now()->year)
             ->sum('total_cost');
@@ -37,17 +31,52 @@ class DashboardController extends Controller
         // ------------------------------------------------------------------
         // 2. Operations (การดำเนินงาน)
         // ------------------------------------------------------------------
-        $completedJobs = Booking::where('status', 'completed')->count();
-        $pendingJobs = Booking::where('status', 'completed_pending_approval')->count();
+        $today = Carbon::today();
+
+        $completedJobs = Booking::where('status', 'completed')
+            ->whereMonth('actual_end', $today->month)
+            ->whereYear('actual_end', $today->year)
+            ->count();
+            
         $activeMachines = Booking::where('status', 'in_progress')->count();
-        $availableStaff = User::where('role', 'staff')->count(); 
-        $fuelRequests = FuelLog::whereDate('created_at', today())->count();
+        $availableStaff = User::where('role', 'staff')->count(); // อาจต้องเพิ่ม logic เช็คพนักงานที่ว่างจริงๆ
+        $fuelRequests = FuelLog::whereDate('created_at', $today)->count();
 
         // ------------------------------------------------------------------
-        // 3. Alerts (แจ้งเตือนด่วน)
+        // 3. Today's Action & Exceptions (จัดการด่วน & แจ้งเตือนความผิดปกติ) 🚨
         // ------------------------------------------------------------------
-        $recentJobs = Booking::with(['customer', 'assignedStaff'])->latest()->take(5)->get();
         
+        // 3.1 คิวงานปกติที่มีกำหนดทำ "วันนี้"
+        $todayJobs = Booking::with(['customer', 'equipment'])
+            ->whereDate('scheduled_start', $today)
+            ->whereNotIn('status', ['cancelled']) // ไม่เอางานที่ยกเลิกไปแล้ว
+            ->get()
+            ->map(function ($job) {
+                return (object) [
+                    'job_number' => $job->job_number ?? 'JOB-'.$job->id,
+                    'time_range' => Carbon::parse($job->scheduled_start)->format('H:i') . ' - ' . Carbon::parse($job->scheduled_end)->format('H:i'),
+                    'customer_name' => $job->customer->name ?? 'ไม่ระบุลูกค้า',
+                    'equipment_name' => $job->equipment->name ?? 'ไม่ระบุเครื่องจักร'
+                ];
+            });
+
+        // 3.2 งานรออนุมัติปกติ (ที่มีกำหนดในอนาคต หรือ วันนี้)
+        $pendingJobs = Booking::where('status', 'pending')
+            ->whereDate('scheduled_start', '>=', $today)
+            ->get();
+            
+        $pendingJobsCount = $pendingJobs->count(); // สำหรับแสดงในกล่องสถิติ
+
+        // 3.3 งานรออนุมัติ แต่เลยวันนัดหมายมาแล้ว (Expired Pending) ⚠️
+        $expiredPendingJobs = Booking::where('status', 'pending')
+            ->whereDate('scheduled_start', '<', $today)
+            ->get();
+
+        // 3.4 งานอนุมัติแล้ว/มอบหมายแล้ว แต่เลยวันนัดหมายพนักงานยังไม่ทำ (Overdue) 🚨
+        $overdueJobs = Booking::whereIn('status', ['approved', 'assigned'])
+            ->whereDate('scheduled_start', '<', $today)
+            ->get();
+
         // แจ้งเตือนซ่อมบำรุง (ใกล้ถึงชั่วโมงซ่อม)
         $maintenanceAlerts = Equipment::whereRaw('current_hours >= (maintenance_hour_threshold - 10)')
             ->orderByRaw('(maintenance_hour_threshold - current_hours) ASC')
@@ -56,16 +85,16 @@ class DashboardController extends Controller
         // ------------------------------------------------------------------
         // 4. Calendar Events (ปฏิทินงาน)
         // ------------------------------------------------------------------
-        // (ส่วนนี้เหมือนเดิม แต่ผมใส่ไว้ให้ครบไฟล์เพื่อให้ก๊อปปี้ไปวางทับได้เลยครับ)
         $calendarBookings = Booking::with(['customer', 'equipment', 'assignedStaff'])
             ->where('status', '!=', 'cancelled')
             ->get()
             ->map(function ($job) {
                 $statusConfig = match ($job->status) {
-                    'pending' => ['color' => 'bg-gray-100 text-gray-600 border-gray-200', 'icon' => 'fa-clock', 'label' => 'รอจ่ายงาน'],
-                    'scheduled' => ['color' => 'bg-blue-50 text-blue-700 border-blue-200', 'icon' => 'fa-calendar-check', 'label' => 'นัดหมายแล้ว'],
+                    'pending' => ['color' => 'bg-gray-100 text-gray-600 border-gray-200', 'icon' => 'fa-clock', 'label' => 'รออนุมัติ'],
+                    'approved' => ['color' => 'bg-blue-50 text-blue-700 border-blue-200', 'icon' => 'fa-calendar-check', 'label' => 'นัดหมายแล้ว'],
+                    'assigned' => ['color' => 'bg-indigo-50 text-indigo-700 border-indigo-200', 'icon' => 'fa-user-check', 'label' => 'จ่ายงานแล้ว'],
                     'in_progress' => ['color' => 'bg-purple-50 text-purple-700 border-purple-200', 'icon' => 'fa-spinner fa-spin', 'label' => 'กำลังดำเนินการ'],
-                    'completed_pending_approval' => ['color' => 'bg-orange-50 text-orange-700 border-orange-200', 'icon' => 'fa-clipboard-question', 'label' => 'รอตรวจสอบ'],
+                    'completed_pending_approval' => ['color' => 'bg-orange-50 text-orange-700 border-orange-200', 'icon' => 'fa-clipboard-question', 'label' => 'รอตรวจงาน'],
                     'completed' => ['color' => 'bg-green-50 text-green-700 border-green-200', 'icon' => 'fa-circle-check', 'label' => 'เสร็จสิ้น'],
                     default => ['color' => 'bg-gray-50 text-gray-500 border-gray-200', 'icon' => 'fa-circle', 'label' => '-'],
                 };
@@ -76,8 +105,8 @@ class DashboardController extends Controller
                 return [
                     'id' => $job->id,
                     'job_number' => $job->job_number ?? 'JOB-'.$job->id,
-                    'title' => $job->customer->name,
-                    'phone' => $job->customer->phone,
+                    'title' => $job->customer->name ?? '-',
+                    'phone' => $job->customer->phone ?? '-',
                     'location' => $job->customer->address ?? '-',
                     'equipment' => $job->equipment->name ?? '-',
                     'equipment_code' => $job->equipment->equipment_code ?? '',
@@ -96,8 +125,9 @@ class DashboardController extends Controller
         return view('admin.dashboard', compact(
             'totalIncome', 'totalExpense', 'netProfit', 'fuelPurchaseCost', 'fuelCostThisMonth',
             'maintenanceCost', 
-            'completedJobs', 'pendingJobs', 'activeMachines', 'availableStaff', 'fuelRequests',
-            'recentJobs', 'maintenanceAlerts', 'calendarBookings'
+            'completedJobs', 'pendingJobsCount', 'activeMachines', 'availableStaff', 'fuelRequests',
+            'maintenanceAlerts', 'calendarBookings',
+            'todayJobs', 'pendingJobs', 'expiredPendingJobs', 'overdueJobs' // ✅ ส่งตัวแปรใหม่ไป View
         ));
     }
 
@@ -125,7 +155,6 @@ class DashboardController extends Controller
             ->groupBy('date')->pluck('total', 'date');
 
         // รายจ่ายค่าซ่อมบำรุง (Maintenance Cost)
-        // ✅ แก้ไข: เปลี่ยน SUM(cost) -> SUM(total_cost)
         $maintCosts = MaintenanceLog::selectRaw('DATE(completion_date) as date, SUM(total_cost) as total')
             ->where('status', 'completed')
             ->whereBetween('completion_date', [$start, $end])
@@ -162,10 +191,6 @@ class DashboardController extends Controller
             $current->addDay();
         }
 
-        // ---------------------------------------------------------
-        // ✅ เพิ่ม: คำนวณยอดรวมเจาะจง ตามช่วงเวลาที่เลือก (Flex)
-        // ---------------------------------------------------------
-        // ✅ แก้ไข: เปลี่ยน sum('cost') -> sum('total_cost')
         $summaryMaintenance = MaintenanceLog::where('status', 'completed')
             ->whereBetween('completion_date', [$start, $end])
             ->sum('total_cost');

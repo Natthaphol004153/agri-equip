@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage; // ✅ เรียกใช้ Storage
+use Illuminate\Support\Facades\Storage;
 
 class CustomerController extends Controller
 {
@@ -38,7 +38,7 @@ class CustomerController extends Controller
         $cleanPhone = str_replace(['-', ' '], '', $request->phone);
         $request->merge(['phone' => $cleanPhone]);
 
-        // 2. Validate ข้อมูล
+        // 2. Validate ข้อมูล (เพิ่ม farm_area, latitude, longitude)
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone',
@@ -49,7 +49,10 @@ class CustomerController extends Controller
             'province' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:10',
-            'profile_image' => 'nullable|image|max:5120', // ✅ รับรูปภาพไม่เกิน 5MB
+            'farm_area' => 'nullable|numeric|min:0', // ✅ เพิ่ม
+            'latitude' => 'nullable|string|max:50',  // ✅ เพิ่ม
+            'longitude' => 'nullable|string|max:50', // ✅ เพิ่ม
+            'profile_image' => 'nullable|image|max:5120',
         ]);
 
         // 3. Auto Generate Code
@@ -65,7 +68,7 @@ class CustomerController extends Controller
         $rawPassword = substr($cleanPhone, -4);
         $data['password'] = Hash::make($rawPassword);
 
-        // ✅ 5. อัปโหลดรูปภาพ (ถ้ามี)
+        // 5. อัปโหลดรูปภาพ (ถ้ามี)
         if ($request->hasFile('profile_image')) {
             $path = $request->file('profile_image')->store('customers', 'public');
             $data['profile_image'] = $path;
@@ -90,6 +93,7 @@ class CustomerController extends Controller
         $cleanPhone = str_replace(['-', ' '], '', $request->phone);
         $request->merge(['phone' => $cleanPhone]);
 
+        // Validate ข้อมูล (เพิ่ม farm_area, latitude, longitude)
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:customers,phone,' . $id,
@@ -100,16 +104,17 @@ class CustomerController extends Controller
             'province' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:10',
-            'profile_image' => 'nullable|image|max:5120', // ✅
+            'farm_area' => 'nullable|numeric|min:0', // ✅ เพิ่ม
+            'latitude' => 'nullable|string|max:50',  // ✅ เพิ่ม
+            'longitude' => 'nullable|string|max:50', // ✅ เพิ่ม
+            'profile_image' => 'nullable|image|max:5120',
         ]);
 
-        // ✅ อัปเดตรูปภาพ
+        // อัปเดตรูปภาพ
         if ($request->hasFile('profile_image')) {
-            // ลบรูปเก่าทิ้งก่อน (ถ้ามี)
             if ($customer->profile_image) {
                 Storage::disk('public')->delete($customer->profile_image);
             }
-            // อัปรูปใหม่
             $path = $request->file('profile_image')->store('customers', 'public');
             $data['profile_image'] = $path;
         }
@@ -124,7 +129,6 @@ class CustomerController extends Controller
     {
         $customer = Customer::findOrFail($id);
         
-        // ✅ ลบรูปภาพออกจาก Storage ด้วย
         if ($customer->profile_image) {
             Storage::disk('public')->delete($customer->profile_image);
         }
