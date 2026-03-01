@@ -109,13 +109,13 @@
             </div>
         </div>
 
-        {{-- 3. บุคลากร (People) --}}
+        {{-- 3. ลูกค้า (Customers) --}}
         <div>
             <div class="flex items-center gap-3 mb-4 px-2">
-                <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                    <i class="fa-solid fa-users-gear"></i>
+                <div class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600">
+                    <i class="fa-solid fa-users"></i>
                 </div>
-                <h3 class="font-bold text-gray-700 text-lg">บุคลากร</h3>
+                <h3 class="font-bold text-gray-700 text-lg">ลูกค้า</h3>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -126,7 +126,19 @@
                     <h4 class="font-bold text-gray-800 group-hover:text-teal-600 transition-colors">ลูกค้า</h4>
                     <p class="text-xs text-gray-400 mt-1">รายชื่อผู้ใช้บริการ</p>
                 </a>
+            </div>
+        </div>
 
+        {{-- 4. บุคลากร (Personnel) --}}
+        <div>
+            <div class="flex items-center gap-3 mb-4 px-2">
+                <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                    <i class="fa-solid fa-users-gear"></i>
+                </div>
+                <h3 class="font-bold text-gray-700 text-lg">บุคลากร</h3>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <a href="{{ route('admin.users.index') }}" class="group bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all duration-300">
                     <div class="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform">
                         <i class="fa-solid fa-id-card-clip"></i>
@@ -137,7 +149,7 @@
             </div>
         </div>
 
-        {{-- 4. รายงานและระบบ (Reports & System) --}}
+        {{-- 5. รายงานและระบบ (Reports & System) --}}
         <div>
             <div class="flex items-center gap-3 mb-4 px-2">
                 <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">

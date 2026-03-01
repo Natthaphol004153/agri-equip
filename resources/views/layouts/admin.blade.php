@@ -77,11 +77,13 @@
             ? 'operations'
             : (request()->routeIs('admin.fuel.*')
                 ? 'fuel'
-                : (request()->routeIs('admin.customers.*') || request()->routeIs('admin.users.*')
-                    ? 'people'
+                : (request()->routeIs('admin.customers.*')
+                    ? 'customers'
+                    : (request()->routeIs('admin.users.*')
+                        ? 'personnel'
                     : (request()->routeIs('admin.reports.*') || request()->routeIs('admin.settings.*')
                         ? 'system'
-                        : ''))) }}',
+                        : '')))) }}',
         toggle(group) {
             this.openGroup = this.openGroup === group ? null : group;
         }
@@ -164,22 +166,37 @@
                 </div>
             </div>
 
-            {{-- GROUP: People (บุคลากร) --}}
+            {{-- GROUP: Customers (ลูกค้า) --}}
             <div>
-                <button @click="toggle('people')"
+                <button @click="toggle('customers')"
                     class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
                     <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-users w-6 text-center text-green-300"></i>
-                        <span class="font-medium">บุคลากร</span>
+                        <i class="fa-solid fa-users w-6 text-center text-teal-300"></i>
+                        <span class="font-medium">ลูกค้า</span>
                     </div>
                     <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300"
-                        :class="openGroup === 'people' ? 'rotate-180' : ''"></i>
+                        :class="openGroup === 'customers' ? 'rotate-180' : ''"></i>
                 </button>
-                <div x-show="openGroup === 'people'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
+                <div x-show="openGroup === 'customers'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
                     <a href="{{ route('admin.customers.index') }}"
                         class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.customers.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
                         ข้อมูลลูกค้า (Customers)
                     </a>
+                </div>
+            </div>
+
+            {{-- GROUP: Personnel (บุคลากร) --}}
+            <div>
+                <button @click="toggle('personnel')"
+                    class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-all">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-users-gear w-6 text-center text-green-300"></i>
+                        <span class="font-medium">บุคลากร</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-xs transition-transform duration-300"
+                        :class="openGroup === 'personnel' ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="openGroup === 'personnel'" x-collapse class="pl-11 pr-2 space-y-1 mt-1">
                     <a href="{{ route('admin.users.index') }}"
                         class="block px-3 py-2 rounded-lg text-sm {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white' }}">
                         พนักงาน (Staff)
