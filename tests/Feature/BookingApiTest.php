@@ -18,7 +18,8 @@ class BookingApiTest extends TestCase
         $customer = Customer::create([
             'customer_code' => 'CUST-001',
             'name' => 'John Doe',
-            'phone' => '0123456789'
+            'phone' => '0123456789',
+            'password' => '1234'
         ]);
 
         $equipment = Equipment::create([
@@ -37,7 +38,7 @@ class BookingApiTest extends TestCase
             'equipment_id' => $equipment->id,
             'scheduled_start' => $start,
             'scheduled_end' => $end,
-            'total_price' => 5000
+            'actual_area' => 10,
         ];
 
         $response = $this->postJson('/api/bookings', $payload);
@@ -56,7 +57,8 @@ class BookingApiTest extends TestCase
         $customer = Customer::create([
             'customer_code' => 'CUST-002',
             'name' => 'Jane',
-            'phone' => '0987654321'
+            'phone' => '0987654321',
+            'password' => '1234'
         ]);
 
         $equipment = Equipment::create([
@@ -77,7 +79,9 @@ class BookingApiTest extends TestCase
             'equipment_id' => $equipment->id,
             'scheduled_start' => $existingStart,
             'scheduled_end' => $existingEnd,
-            'total_price' => 1000
+            'total_price' => 1000,
+            'actual_area' => 10,
+            'status' => 'scheduled'
         ]);
 
         // Attempt to create a booking that overlaps the existing one
@@ -86,7 +90,7 @@ class BookingApiTest extends TestCase
             'equipment_id' => $equipment->id,
             'scheduled_start' => Carbon::now()->addDays(4)->toDateTimeString(), // overlaps
             'scheduled_end' => Carbon::now()->addDays(6)->toDateTimeString(),
-            'total_price' => 2000
+            'actual_area' => 10,
         ];
 
         $response = $this->postJson('/api/bookings', $payload);

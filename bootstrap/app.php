@@ -18,9 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // ✅ 1. ลงทะเบียนชื่อ 'admin' ตรงนี้ (สำคัญมาก!)
         $middleware->alias([
             'is_admin' => \App\Http\Middleware\IsAdmin::class,
-            // เพิ่มบรรทัดนี้ลงไปครับ เพื่อให้ Laravel รู้จัก Proxy ของ Cloudflare
-            $middleware->trustProxies(at: '*'),
+            'api.role' => \App\Http\Middleware\ApiRole::class,
         ]);
+
+        // รองรับ Reverse Proxy / Cloudflare
+        $middleware->trustProxies(at: '*');
 
         // ✅ 2. ตั้งค่า Redirect (กันหน้า Login วนลูป)
         $middleware->redirectUsersTo(function (Request $request) {

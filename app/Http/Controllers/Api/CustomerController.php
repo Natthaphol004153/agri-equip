@@ -35,7 +35,10 @@ class CustomerController extends Controller
             'phone' => 'required|string|max:20',
             'customer_type' => 'required|in:individual,farm',
             'address' => 'nullable|string',
+            'password' => 'required|string|min:4', // บังคับรับรหัสผ่านด้วย
         ]);
+
+        $validated['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
 
         $customer = Customer::create($validated);
         return response()->json($customer, 201);
@@ -51,7 +54,14 @@ class CustomerController extends Controller
             'phone' => 'required|string|max:20',
             'customer_type' => 'required|in:individual,farm',
             'address' => 'nullable|string',
+            'password' => 'nullable|string|min:4'
         ]);
+
+        if (!empty($validated['password'])) {
+            $validated['password'] = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
 
         $customer->update($validated);
         return $customer;

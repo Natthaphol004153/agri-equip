@@ -17,12 +17,17 @@ class Equipment extends Model
         'equipment_code',
         'name',
         'type',
+        'custom_type_name',
+        'equipment_group',
+        'tracking_type', // <-- เพิ่ม tracking_type
         'registration_number',
         'current_hours',
+        'current_kilometers', // <-- เพิ่ม current_kilometers
         'maintenance_hour_threshold',
+        'maintenance_km_threshold', // <-- เพิ่ม maintenance_km_threshold
         'hourly_rate',
         'current_status',
-        'price_per_rai', // ✅ เพิ่มฟิลด์ราคาต่อไร่
+        'price_per_rai',
         'image_path'
     ];
 

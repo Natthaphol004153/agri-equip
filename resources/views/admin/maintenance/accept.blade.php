@@ -40,7 +40,7 @@
             @endif
         </div>
 
-        <form action="{{ route('admin.maintenance.accept', $log->id) }}" method="POST" class="bg-red-50 p-5 rounded-xl border border-red-100">
+        <form action="{{ route('admin.maintenance.accept_submit', $log->id) }}" method="POST">
             @csrf
             <label class="block text-sm font-bold text-red-800 mb-2"><i class="fa-solid fa-pen-to-square"></i> บันทึกโน้ตของแอดมิน (ก่อนรับเรื่อง)</label>
             <textarea name="admin_note" rows="2" required class="w-full rounded-xl border-red-200 shadow-sm focus:border-red-500 focus:ring-red-500 p-3 mb-4" placeholder="ระบุการตัดสินใจ เช่น สั่งให้จอดรอช่าง หรือนำกลับบริษัท..."></textarea>

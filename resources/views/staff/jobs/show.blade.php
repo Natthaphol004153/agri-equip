@@ -315,8 +315,17 @@
                                 </div>
                             </template>
 
-                            {{-- 5. รูปผลงาน (บังคับ) --}}
+                            {{-- 5. รูปผลงาน (บังคับ) และ เลขหน้าปัด --}}
                             <div class="space-y-3 pt-4 border-t border-gray-100">
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">
+                                        ⏱️ เลขหน้าปัดปัจจุบัน ({{ $job->equipment->tracking_type == 'kilometers' ? 'กิโลเมตร' : 'ชั่วโมง' }}) *
+                                    </label>
+                                    <input type="number" step="0.1" min="0" name="meter_reading" required
+                                        class="w-full rounded-xl border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 p-3"
+                                        placeholder="ดูตัวเลขจากหน้าปัดรถแล้วกรอกที่นี่...">
+                                </div>
+
                                 <div>
                                     <label class="block text-sm font-bold text-gray-700 mb-1">📸 รูปผลงานจบงาน (บังคับ)
                                         *</label>

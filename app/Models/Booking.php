@@ -18,6 +18,7 @@ class Booking extends Model
         'scheduled_start',
         'scheduled_end',
         'actual_start',
+        'meter_before_start',
         'actual_end',
         'status',
         
@@ -33,7 +34,7 @@ class Booking extends Model
         'payment_method',
         'payment_proof',
         'payment_trans_ref',
-        
+        'meter_reading',
         'image_path',
         'note'
     ];
@@ -43,10 +44,12 @@ class Booking extends Model
         'scheduled_end' => 'datetime',
         'actual_start' => 'datetime',
         'actual_end' => 'datetime',
+        'meter_before_start' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
         'total_price' => 'decimal:2',
         'estimated_area' => 'decimal:2', // ✅ Cast ให้เป็นตัวเลขทศนิยม
         'actual_area' => 'decimal:2',    // ✅ Cast ให้เป็นตัวเลขทศนิยม
+        'meter_reading' => 'decimal:2',
         'price_per_rai_at_booking' => 'decimal:2',
     ];
 

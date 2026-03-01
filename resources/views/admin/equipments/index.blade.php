@@ -27,7 +27,7 @@
                     <tr>
                         <th class="px-6 py-4 font-medium">เครื่องจักร</th>
                         <th class="px-6 py-4 font-medium">ประเภท</th>
-                        <th class="px-6 py-4 font-medium text-center">ชั่วโมงใช้งาน / รอบซ่อม</th>
+                        <th class="px-6 py-4 font-medium text-center">มิเตอร์ใช้งาน / รอบซ่อม</th>
                         <th class="px-6 py-4 font-medium text-center">สถานะ</th>
                         <th class="px-6 py-4 font-medium text-right">จัดการ</th>
                     </tr>
@@ -69,7 +69,7 @@
                                         'tractor' => ['icon' => 'fa-tractor', 'label' => 'รถไถ', 'color' => 'text-orange-500 bg-orange-50'],
                                         'harvester' => ['icon' => 'fa-wheat-awn', 'label' => 'รถเกี่ยว', 'color' => 'text-green-600 bg-green-50'],
                                         'sprayer' => ['icon' => 'fa-spray-can', 'label' => 'รถพ่นยา', 'color' => 'text-purple-500 bg-purple-50'],
-                                        default => ['icon' => 'fa-cogs', 'label' => 'อื่นๆ', 'color' => 'text-gray-500 bg-gray-50'],
+                                        default => ['icon' => 'fa-cogs', 'label' => ($eq->custom_type_name ?: 'อื่นๆ'), 'color' => 'text-gray-500 bg-gray-50'],
                                     };
                                 @endphp
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold {{ $typeConfig['color'] }}">
@@ -80,15 +80,19 @@
                             {{-- สถานะการซ่อมบำรุง (Progress Bar) --}}
                             <td class="px-6 py-4 align-middle">
                                 @php
-                                    $percent = $eq->maintenance_hour_threshold > 0 ? ($eq->current_hours / $eq->maintenance_hour_threshold) * 100 : 0;
+                                    $isKmTracking = $eq->tracking_type === 'kilometers';
+                                    $currentMeter = $isKmTracking ? ($eq->current_kilometers ?? 0) : ($eq->current_hours ?? 0);
+                                    $maintenanceThreshold = $isKmTracking ? ($eq->maintenance_km_threshold ?? 0) : ($eq->maintenance_hour_threshold ?? 0);
+                                    $meterUnit = $isKmTracking ? 'กม.' : 'ชม.';
+                                    $percent = $maintenanceThreshold > 0 ? ($currentMeter / $maintenanceThreshold) * 100 : 0;
                                     $barColor = 'bg-green-500';
                                     if($percent > 70) $barColor = 'bg-yellow-400';
                                     if($percent >= 100) $barColor = 'bg-red-500';
                                 @endphp
                                 <div class="w-full max-w-[140px] mx-auto">
                                     <div class="flex justify-between text-xs mb-1">
-                                        <span class="font-bold text-gray-700">{{ number_format($eq->current_hours) }} ชม.</span>
-                                        <span class="text-gray-400">/ {{ number_format($eq->maintenance_hour_threshold) }}</span>
+                                        <span class="font-bold text-gray-700">{{ number_format($currentMeter) }} {{ $meterUnit }}</span>
+                                        <span class="text-gray-400">/ {{ number_format($maintenanceThreshold) }}</span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                                         <div class="{{ $barColor }} h-1.5 rounded-full" style="width: {{ min($percent, 100) }}%"></div>

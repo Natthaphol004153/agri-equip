@@ -172,12 +172,21 @@ class JobController extends Controller
         $updateData = [
             'status' => $request->status,
             'actual_area' => $request->actual_area ?? $job->actual_area, // ✅ อัปเดตพื้นที่
-            'total_price' => $request->total_price ?? $job->total_price, // แอดมินอาจจะแก้ราคาเองจากหน้าเว็บ
-            'deposit_amount' => $request->deposit_amount ?? $job->deposit_amount,
             'assigned_staff_id' => $request->assigned_staff_id,
             'note' => $request->note,
             'payment_method' => $request->payment_method,
         ];
+
+        // ✅ คำนวณราคาใหม่หาก actual_area เปลี่ยน หรือใช้ค่าเดิม (โดย admin สามารถ override ได้ถ้าส่ง total_price มา)
+        if ($request->has('total_price') && !is_null($request->total_price)) {
+             $updateData['total_price'] = $request->total_price;
+        } else {
+             $newArea = $request->actual_area ?? $job->actual_area;
+             $updateData['total_price'] = $newArea * ($job->price_per_rai_at_booking ?? 0);
+        }
+
+        // ✅ อัปเดตยอดมัดจำที่แอดมินอาจแก้ไข
+        $updateData['deposit_amount'] = $request->deposit_amount ?? $job->deposit_amount;
 
         // 🟢 ถ้ามีการแนบสลิปใหม่ (กรณีโอนเงิน)
         if ($request->hasFile('payment_proof')) {
@@ -219,15 +228,47 @@ class JobController extends Controller
 
     public function approve(Request $request, $id)
     {
-        $job = Booking::findOrFail($id);
+        $job = Booking::with('equipment')->findOrFail($id); // ดึงข้อมูลรถมาด้วย
 
-        // อัปเดตให้เป็น completed และถือว่าจ่ายเงินครบถ้วน (paid)
+        if (!$job->equipment) {
+            return back()->with('error', 'ไม่พบข้อมูลเครื่องจักรของงานนี้ ไม่สามารถอนุมัติได้');
+        }
+
+        if (is_null($job->meter_reading)) {
+            return back()->with('error', 'ไม่พบเลขหน้าปัดที่พนักงานส่งมา กรุณาตรวจสอบก่อนอนุมัติ');
+        }
+
+        $equipment = $job->equipment;
+        $currentMeter = $equipment->tracking_type == 'hours'
+            ? (float) ($equipment->current_hours ?? 0)
+            : (float) ($equipment->current_kilometers ?? 0);
+        $meterBeforeStart = (float) ($job->meter_before_start ?? 0);
+        $minimumAllowedMeter = max($currentMeter, $meterBeforeStart);
+
+        if ((float) $job->meter_reading < $minimumAllowedMeter) {
+            $unit = $equipment->tracking_type == 'kilometers' ? 'กม.' : 'ชม.';
+
+            return back()->with('error', "อนุมัติไม่ได้: เลขหน้าปัดใหม่ ({$job->meter_reading} {$unit}) น้อยกว่าค่าขั้นต่ำที่อนุญาต ({$minimumAllowedMeter} {$unit})");
+        }
+
+        // 1. อัปเดตสถานะงานเป็นเสร็จสมบูรณ์
         $job->update([
             'status' => 'completed',
             'payment_status' => 'paid'
         ]);
 
-        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว! สามารถพิมพ์ใบเสร็จได้ทันที');
+        // 2. อัปเดตเลขไมล์/ชั่วโมง ให้รถคันนั้น
+        if ($job->meter_reading > 0) {
+            if ($equipment->tracking_type == 'hours') {
+                // ถ้านับเป็นชั่วโมง อัปเดตฟิลด์ชั่วโมง
+                $equipment->update(['current_hours' => $job->meter_reading]);
+            } else {
+                // ถ้านับเป็นกิโลเมตร อัปเดตฟิลด์กิโลเมตร
+                $equipment->update(['current_kilometers' => $job->meter_reading]);
+            }
+        }
+
+        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงาน อัปเดตเลขไมล์รถ และปิด Job เรียบร้อยแล้ว!');
     }
 
     public function cancel($id)

@@ -27,7 +27,8 @@ class CustomerApiTest extends TestCase
         $payload = [
             'name' => 'Somchai',
             'phone' => '0812345678',
-            'customer_type' => 'individual'
+            'customer_type' => 'individual',
+            'password' => '1234'
         ];
 
         $resp = $this->postJson('/api/admin/customers', $payload);

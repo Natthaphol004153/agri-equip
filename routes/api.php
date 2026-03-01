@@ -19,14 +19,26 @@ use App\Models\User;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
+$adminApiMiddleware = app()->environment('production')
+    ? ['auth:sanctum', 'api.role:admin']
+    : [];
+
+$staffApiMiddleware = app()->environment('production')
+    ? ['auth:sanctum', 'api.role:staff,admin']
+    : [];
+
+$maintenanceApiMiddleware = app()->environment('production')
+    ? ['auth:sanctum', 'api.role:staff,admin']
+    : [];
+
 // Public booking endpoint (keeps backward compatibility with tests)
 Route::post('/bookings', [BookingController::class, 'store']);
 
 // Public equipment create (tests expect POST /api/equipments)
-Route::post('/equipments', [AdminController::class, 'storeEquipment']);
+Route::post('/equipments', [AdminController::class, 'storeEquipment'])->middleware($adminApiMiddleware);
 
 
-Route::prefix('admin')->group(function () {
+Route::prefix('admin')->middleware($adminApiMiddleware)->group(function () {
     
     // --- 👥 Staff Management ---
     Route::get('/staff-list', function() {
@@ -54,7 +66,7 @@ Route::prefix('admin')->group(function () {
     Route::delete('/equipments/{id}', [AdminController::class, 'deleteEquipment']);
 });
 
-Route::prefix('staff')->group(function () {
+Route::prefix('staff')->middleware($staffApiMiddleware)->group(function () {
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/{id}/jobs', [StaffController::class, 'getMyJobs']);
     Route::post('/jobs/{id}/start', [StaffController::class, 'startJob']);
@@ -62,5 +74,5 @@ Route::prefix('staff')->group(function () {
 });
 
 Route::get('/equipments', [EquipmentController::class, 'index']);
-Route::post('/maintenance/report', [MaintenanceController::class, 'report']);
-Route::post('/maintenance/{id}/complete', [MaintenanceController::class, 'complete']);
+Route::post('/maintenance/report', [MaintenanceController::class, 'report'])->middleware($maintenanceApiMiddleware);
+Route::post('/maintenance/{id}/complete', [MaintenanceController::class, 'complete'])->middleware($maintenanceApiMiddleware);

@@ -5,6 +5,12 @@
 
 @section('content')
 <div class="max-w-6xl mx-auto space-y-6">
+    @php
+        $isKmTracking = $equipment->tracking_type === 'kilometers';
+        $currentMeter = $isKmTracking ? ($equipment->current_kilometers ?? 0) : ($equipment->current_hours ?? 0);
+        $thresholdMeter = $isKmTracking ? ($equipment->maintenance_km_threshold ?? 0) : ($equipment->maintenance_hour_threshold ?? 0);
+        $meterUnit = $isKmTracking ? 'กม.' : 'ชม.';
+    @endphp
     
     {{-- Header Action --}}
     <div class="flex justify-between items-center">
@@ -41,7 +47,7 @@
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between border-b border-gray-50 pb-2">
                         <span class="text-gray-500">ประเภท</span>
-                        <span class="font-medium text-gray-800">{{ ucfirst($equipment->type) }}</span>
+                        <span class="font-medium text-gray-800">{{ $equipment->type === 'other' ? ($equipment->custom_type_name ?: 'อื่นๆ') : ucfirst($equipment->type) }}</span>
                     </div>
                     <div class="flex justify-between border-b border-gray-50 pb-2">
                         <span class="text-gray-500">ทะเบียน</span>
@@ -84,9 +90,9 @@
                         <i class="fa-solid fa-clock"></i>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-500">ชั่วโมงใช้งาน</p>
-                        <p class="text-xl font-bold text-gray-800">{{ $equipment->current_hours }} ชม.</p>
-                        <p class="text-[10px] text-gray-400">ครบกำหนดที่ {{ $equipment->maintenance_hour_threshold }}</p>
+                        <p class="text-xs text-gray-500">มิเตอร์ใช้งาน</p>
+                        <p class="text-xl font-bold text-gray-800">{{ number_format($currentMeter, 2) }} {{ $meterUnit }}</p>
+                        <p class="text-[10px] text-gray-400">ครบกำหนดที่ {{ number_format($thresholdMeter, 2) }} {{ $meterUnit }}</p>
                     </div>
                 </div>
             </div>

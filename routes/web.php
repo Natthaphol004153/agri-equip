@@ -76,9 +76,13 @@ Route::prefix('customer')->name('customer.')->group(function () {
             ->name('booking.check_schedule');
         Route::get('booking/create', [CustomerDashboardController::class, 'create'])->name('booking.create');
         Route::post('booking', [CustomerDashboardController::class, 'store'])->name('booking.store');
+        Route::post('bookings', [CustomerDashboardController::class, 'store'])->name('bookings.store');
         Route::get('booking/{id}', [CustomerDashboardController::class, 'show'])->name('booking.show');
+        Route::get('bookings/{id}', [CustomerDashboardController::class, 'show'])->name('bookings.show');
         Route::get('booking/{id}/payment', [CustomerDashboardController::class, 'payment'])->name('booking.payment');
+        Route::get('bookings/{id}/payment', [CustomerDashboardController::class, 'payment'])->name('bookings.payment');
         Route::post('booking/{id}/payment', [CustomerDashboardController::class, 'uploadSlip'])->name('booking.upload_slip');
+        Route::post('bookings/{id}/payment', [CustomerDashboardController::class, 'uploadSlip'])->name('bookings.upload_slip');
         Route::post('logout', [CustomerAuthController::class, 'logout'])->name('logout');
     });
 });

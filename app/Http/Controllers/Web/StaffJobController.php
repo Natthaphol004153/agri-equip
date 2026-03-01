@@ -83,10 +83,15 @@ class StaffJobController extends Controller
             ->firstOrFail();
 
         $startTime = Carbon::now();
+        $trackingType = $job->equipment->tracking_type ?? 'hours';
+        $meterBeforeStart = $trackingType === 'kilometers'
+            ? (float) ($job->equipment->current_kilometers ?? 0)
+            : (float) ($job->equipment->current_hours ?? 0);
 
         $job->update([
             'status' => 'in_progress',
             'actual_start' => $startTime,
+            'meter_before_start' => $meterBeforeStart,
         ]);
 
         if ($request->ajax()) {
@@ -124,6 +129,7 @@ class StaffJobController extends Controller
         $rules = [
             'actual_area' => 'required|numeric|min:0.1',
             'job_image' => 'required|image|max:10240',
+            'meter_reading' => 'required|numeric|min:0',
             'note' => 'nullable|string',
         ];
 
@@ -136,11 +142,19 @@ class StaffJobController extends Controller
 
         $request->validate($rules);
 
+        $meterBeforeStart = (float) ($job->meter_before_start ?? 0);
+        $meterReading = (float) $request->input('meter_reading');
+        if ($meterReading < $meterBeforeStart) {
+            $unit = ($job->equipment->tracking_type ?? 'hours') === 'kilometers' ? 'กม.' : 'ชม.';
+            return back()->with('error', "เลขหน้าปัดหลังจบงานต้องไม่น้อยกว่าเลขก่อนเริ่มงาน ({$meterBeforeStart} {$unit})")->withInput();
+        }
+
         // 4. เตรียมอัปเดตข้อมูล (ไม่ต้องแก้ total_price แล้ว)
         $updateData = [
             'status' => 'completed_pending_approval',
             'actual_end' => Carbon::now(),
             'actual_area' => $actualArea, // บันทึกแค่ไร่ที่ทำจริง
+            'meter_reading' => $request->input('meter_reading'),
             'note' => $request->note,
         ];
 

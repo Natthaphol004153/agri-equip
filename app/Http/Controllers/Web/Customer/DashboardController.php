@@ -73,41 +73,33 @@ class DashboardController extends Controller
 
         $equipment = Equipment::findOrFail($request->equipment_id);
 
-        $start = Carbon::parse($request->start_date . ' ' . $request->start_time);
-        $end = Carbon::parse($request->start_date . ' ' . $request->end_time);
+        $start = Carbon::parse($request->start_date . ' ' . $request->start_time)->format('Y-m-d H:i:s');
+        $end = Carbon::parse($request->start_date . ' ' . $request->end_time)->format('Y-m-d H:i:s');
 
-        // เช็คคิวว่าง (เหมือนเดิม)
-        $isOverlap = Booking::where('equipment_id', $request->equipment_id)
-            ->where('status', '!=', 'cancelled')
-            ->where(function ($query) use ($start, $end) {
-                $query->where('scheduled_start', '<', $end)
-                    ->where('scheduled_end', '>', $start);
-            })->exists();
+        // ✅ เรียกใช้ BookingService แทนการเช็คเอง เพื่อดัก Double Booking จากจุดเดียว
+        $bookingService = app(\App\Services\BookingService::class);
+        
+        try {
+             $bookingService->createBooking([
+                 'customer_id' => Auth::guard('customer')->id(),
+                 'equipment_id' => $equipment->id,
+                 'scheduled_start' => $start,
+                 'scheduled_end' => $end,
+                 'status' => 'pending_approval',        
+                 'payment_status' => 'pending',
+                 'actual_area' => 0,           // ลูกค้ายังไม่ทราบพื้นที่เป๊ะๆ ใส่ 0 ไปก่อนให้แอดมินประเมิน
+                 'estimated_area' => 0,
+                 'deposit_amount' => 0,        
+                 'note' => $request->note,
+                 // Service จะไปคำนวณ total_price และ job_number ให้เอง
+             ]);
 
-        if ($isOverlap) {
-            return back()->withInput()->withErrors(['time_slot' => '❌ ช่วงเวลานี้มีผู้จองแล้ว กรุณาเลือกเวลาอื่น']);
+            // ✅ ส่งกลับไปหน้า Dashboard พร้อมข้อความแจ้งเตือน
+            return redirect()->route('customer.dashboard')
+                ->with('success', 'ส่งคำขอจองเรียบร้อยแล้ว! เจ้าหน้าที่จะตรวจสอบรายละเอียดและแจ้งราคาให้ทราบภายหลังครับ');
+        } catch (\Exception $e) {
+             return back()->withInput()->withErrors(['time_slot' => '❌ ไม่สามารถจองได้: ' . $e->getMessage()]);
         }
-
-        // ✅ สร้างใบงาน (Booking)
-        Booking::create([
-            'job_number' => 'JOB-' . strtoupper(Str::random(8)),
-            'customer_id' => Auth::guard('customer')->id(),
-            'equipment_id' => $equipment->id,
-            'scheduled_start' => $start,
-            'scheduled_end' => $end,
-
-            'status' => 'pending',        // สถานะ: รอแอดมินตรวจสอบ
-            'payment_status' => 'pending',
-
-            'total_price' => 0,           // ✅ ใส่ 0 ไว้ก่อน (รอแอดมินมากรอก)
-            'deposit_amount' => 0,        // ✅ ใส่ 0 ไว้ก่อน
-
-            'note' => $request->note,
-        ]);
-
-        // ✅ ส่งกลับไปหน้า Dashboard พร้อมข้อความแจ้งเตือน
-        return redirect()->route('customer.dashboard')
-            ->with('success', 'ส่งคำขอจองเรียบร้อยแล้ว! เจ้าหน้าที่จะตรวจสอบรายละเอียดและแจ้งราคาให้ทราบภายหลังครับ');
     }
 
     // ----------------------------------------------------------------------

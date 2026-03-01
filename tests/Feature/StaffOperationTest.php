@@ -27,7 +27,7 @@ class StaffOperationTest extends TestCase
         Storage::fake('public');
 
         $this->staff = User::factory()->create(['role' => 'staff', 'username' => 'staff01']);
-        $this->customer = Customer::create(['name' => 'Lung Mee', 'phone' => '0811111111']);
+        $this->customer = Customer::create(['name' => 'Lung Mee', 'phone' => '0811111111', 'password' => '1234']);
         $this->equipment = Equipment::create([
             'name' => 'Tractor T1',
             'equipment_code' => 'TR-001',
@@ -62,6 +62,8 @@ class StaffOperationTest extends TestCase
 
         // 3. พนักงานกด Finish (ต้องส่งรูปภาพด้วย)
         $responseFinish = $this->actingAs($this->staff)->post(route('staff.jobs.finish', $job->id), [
+            'actual_area' => 10,
+            'meter_reading' => 120, // ต้องแนบเลขหน้าปัด
             'job_image' => UploadedFile::fake()->image('job_done.jpg'), // ✅ จำลองรูปหน้างาน
             'note' => 'Done without issues'
         ]);

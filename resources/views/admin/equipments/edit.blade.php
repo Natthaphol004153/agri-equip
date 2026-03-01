@@ -31,9 +31,26 @@
                             <label class="block text-sm font-bold text-gray-700 mb-1.5">ชื่อเครื่องจักร <span class="text-red-500">*</span></label>
                             <input type="text" name="name" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none transition" value="{{ old('name', $equipment->name) }}" required>
                         </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">กลุ่มอุปกรณ์</label>
+                            <select name="equipment_group" id="equipmentGroupSelect" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none bg-white cursor-pointer" required>
+                                <option value="machine" {{ old('equipment_group', $equipment->equipment_group ?? 'machine') == 'machine' ? 'selected' : '' }}>🚜 เครื่องจักรภาคพื้น</option>
+                                <option value="drone" {{ old('equipment_group', $equipment->equipment_group) == 'drone' ? 'selected' : '' }}>🔋 โดรน/อุปกรณ์ไฟฟ้า</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">รูปแบบมิเตอร์</label>
+                            <select name="tracking_type" id="trackingTypeSelect" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none bg-white cursor-pointer" required>
+                                <option value="hours" {{ old('tracking_type', $equipment->tracking_type) == 'hours' ? 'selected' : '' }}>⏱️ ชั่วโมง</option>
+                                <option value="kilometers" {{ old('tracking_type', $equipment->tracking_type) == 'kilometers' ? 'selected' : '' }}>🛣️ กิโลเมตร</option>
+                            </select>
+                        </div>
+
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">ประเภท</label>
-                            <select name="type" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none bg-white cursor-pointer" required>
+                            <select name="type" id="typeSelect" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none bg-white cursor-pointer" required>
                                 <option value="tractor" {{ $equipment->type == 'tractor' ? 'selected' : '' }}>🚜 รถไถ</option>
                                 <option value="excavator" {{ $equipment->type == 'excavator' ? 'selected' : '' }}>🏗️ รถแม็คโคร</option>
                                 <option value="drone" {{ $equipment->type == 'drone' ? 'selected' : '' }}>🚁 โดรน</option>
@@ -41,6 +58,11 @@
                                 <option value="sprayer" {{ $equipment->type == 'sprayer' ? 'selected' : '' }}>💦 รถพ่นยา</option>
                                 <option value="other" {{ $equipment->type == 'other' ? 'selected' : '' }}>📦 อื่นๆ</option>
                             </select>
+                        </div>
+
+                        <div id="customTypeBlock" class="md:col-span-2 {{ $equipment->type == 'other' ? '' : 'hidden' }}">
+                            <label class="block text-sm font-bold text-gray-700 mb-1.5">ระบุประเภทเพิ่มเติม (นวัตกรรมใหม่) <span class="text-red-500">*</span></label>
+                            <input type="text" name="custom_type_name" id="customTypeInput" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-agri-primary/20 focus:border-agri-primary outline-none transition" value="{{ old('custom_type_name', $equipment->custom_type_name) }}" placeholder="เช่น โดรนหว่านเมล็ดอัตโนมัติ / UGV เกษตร">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">รหัสเครื่องจักร</label>
@@ -64,11 +86,19 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         
                         {{-- รอบซ่อมบำรุง --}}
-                        <div class="md:col-span-2 p-4 bg-orange-50 rounded-xl border border-orange-100">
+                        <div id="maintenanceHourBlock" class="md:col-span-2 p-4 bg-orange-50 rounded-xl border border-orange-100">
                             <label class="block text-sm font-bold text-orange-800 mb-1.5">รอบซ่อมบำรุง (ชั่วโมง)</label>
                             <div class="relative">
-                                <input type="number" name="maintenance_hour_threshold" class="w-full px-4 py-2.5 rounded-xl border border-orange-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition" value="{{ old('maintenance_hour_threshold', $equipment->maintenance_hour_threshold) }}" required>
+                                <input type="number" name="maintenance_hour_threshold" id="maintenanceHourInput" class="w-full px-4 py-2.5 rounded-xl border border-orange-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition" value="{{ old('maintenance_hour_threshold', $equipment->maintenance_hour_threshold) }}">
                                 <span class="absolute right-4 top-1/2 -translate-y-1/2 text-orange-400 text-sm font-bold">ชม.</span>
+                            </div>
+                        </div>
+
+                        <div id="maintenanceKmBlock" class="md:col-span-2 p-4 bg-orange-50 rounded-xl border border-orange-100 hidden">
+                            <label class="block text-sm font-bold text-orange-800 mb-1.5">รอบซ่อมบำรุง (กิโลเมตร)</label>
+                            <div class="relative">
+                                <input type="number" name="maintenance_km_threshold" id="maintenanceKmInput" class="w-full px-4 py-2.5 rounded-xl border border-orange-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition" value="{{ old('maintenance_km_threshold', $equipment->maintenance_km_threshold) }}">
+                                <span class="absolute right-4 top-1/2 -translate-y-1/2 text-orange-400 text-sm font-bold">กม.</span>
                             </div>
                         </div>
 
@@ -92,9 +122,9 @@
 
                         {{-- ชั่วโมงใช้งานสะสม --}}
                         <div class="md:col-span-2 mt-2">
-                            <label class="block text-sm font-medium text-gray-500 mb-1.5">ชั่วโมงใช้งานสะสม (ดึงจากระบบอัตโนมัติ)</label>
+                            <label class="block text-sm font-medium text-gray-500 mb-1.5">มิเตอร์ปัจจุบัน (ดึงจากระบบอัตโนมัติ)</label>
                             <div class="relative">
-                                <input type="text" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-bold outline-none cursor-not-allowed" value="{{ number_format($equipment->current_hours, 2) }} ชั่วโมง" readonly>
+                                <input type="text" id="currentMeterDisplay" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-100 text-gray-500 font-bold outline-none cursor-not-allowed" readonly>
                                 <i class="fa-solid fa-clock-rotate-left absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             </div>
                         </div>
@@ -155,5 +185,56 @@
         };
         if(event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const groupSelect = document.getElementById('equipmentGroupSelect');
+        const trackingTypeSelect = document.getElementById('trackingTypeSelect');
+        const maintenanceHourBlock = document.getElementById('maintenanceHourBlock');
+        const maintenanceKmBlock = document.getElementById('maintenanceKmBlock');
+        const maintenanceHourInput = document.getElementById('maintenanceHourInput');
+        const maintenanceKmInput = document.getElementById('maintenanceKmInput');
+        const currentMeterDisplay = document.getElementById('currentMeterDisplay');
+        const typeSelect = document.getElementById('typeSelect');
+        const customTypeBlock = document.getElementById('customTypeBlock');
+        const customTypeInput = document.getElementById('customTypeInput');
+
+        const currentHours = {{ (float) ($equipment->current_hours ?? 0) }};
+        const currentKilometers = {{ (float) ($equipment->current_kilometers ?? 0) }};
+
+        function syncMeterUI() {
+            const trackingType = trackingTypeSelect.value;
+            const equipmentGroup = groupSelect.value;
+
+            if (equipmentGroup === 'drone' && trackingType !== 'hours') {
+                trackingTypeSelect.value = 'hours';
+            }
+
+            const isHours = trackingTypeSelect.value === 'hours';
+            maintenanceHourBlock.classList.toggle('hidden', !isHours);
+            maintenanceKmBlock.classList.toggle('hidden', isHours);
+
+            maintenanceHourInput.required = isHours;
+            maintenanceKmInput.required = !isHours;
+
+            currentMeterDisplay.value = isHours
+                ? `${currentHours.toFixed(2)} ชั่วโมง`
+                : `${currentKilometers.toFixed(2)} กิโลเมตร`;
+
+            const isOtherType = typeSelect.value === 'other';
+            customTypeBlock.classList.toggle('hidden', !isOtherType);
+            customTypeInput.required = isOtherType;
+        }
+
+        groupSelect.addEventListener('change', function() {
+            if (this.value === 'drone') {
+                trackingTypeSelect.value = 'hours';
+            }
+            syncMeterUI();
+        });
+
+        trackingTypeSelect.addEventListener('change', syncMeterUI);
+        typeSelect.addEventListener('change', syncMeterUI);
+        syncMeterUI();
+    });
 </script>
 @endsection

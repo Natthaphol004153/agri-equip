@@ -31,10 +31,31 @@ class EquipmentController extends Controller
         $request->validate([
             'name' => 'required',
             'type' => 'required',
+            'custom_type_name' => 'nullable|string|max:100',
+            'equipment_group' => 'required|in:machine,drone',
+            'tracking_type' => 'required|in:hours,kilometers',
             'hourly_rate' => 'required|numeric|min:0',
-            'maintenance_hour_threshold' => 'required|numeric|min:1',
+            'maintenance_hour_threshold' => 'nullable|numeric|min:1',
+            'maintenance_km_threshold' => 'nullable|numeric|min:1',
+            'initial_meter' => 'nullable|numeric|min:0',
             'image' => 'nullable|image|max:5120', // รูปไม่เกิน 5MB
         ]);
+
+        if ($request->tracking_type === 'hours' && !$request->filled('maintenance_hour_threshold')) {
+            return back()->withErrors(['maintenance_hour_threshold' => 'กรุณากำหนดรอบซ่อมบำรุง (ชั่วโมง)'])->withInput();
+        }
+
+        if ($request->tracking_type === 'kilometers' && !$request->filled('maintenance_km_threshold')) {
+            return back()->withErrors(['maintenance_km_threshold' => 'กรุณากำหนดรอบซ่อมบำรุง (กิโลเมตร)'])->withInput();
+        }
+
+        if ($request->equipment_group === 'drone' && $request->tracking_type !== 'hours') {
+            return back()->withErrors(['tracking_type' => 'โดรน/อุปกรณ์ไฟฟ้า รองรับมิเตอร์แบบชั่วโมงในเวอร์ชันนี้'])->withInput();
+        }
+
+        if ($request->type === 'other' && !$request->filled('custom_type_name')) {
+            return back()->withErrors(['custom_type_name' => 'กรุณาระบุประเภทเพิ่มเติมสำหรับ "อื่นๆ"'])->withInput();
+        }
 
         // 2. 🟢 เริ่มระบบสร้างรหัสอัตโนมัติ (Auto-Generate Code)
         // กำหนดตัวย่อตามประเภท
@@ -67,9 +88,22 @@ class EquipmentController extends Controller
         $newCode = $prefix . '-' . sprintf('%03d', $nextNum);
 
         // 3. เตรียมข้อมูลบันทึก
-        $data = $request->except(['equipment_code']); // ตัด input code ทิ้ง (เผื่อหลุดมา)
+        $data = $request->except(['equipment_code', 'initial_meter']); // ตัด input code ทิ้ง (เผื่อหลุดมา)
         $data['equipment_code'] = $newCode; // ✅ ยัดรหัสที่สร้างเองใส่เข้าไป
-        $data['current_hours'] = 0; // เริ่มต้นที่ 0 ชม.
+        if ($request->type !== 'other') {
+            $data['custom_type_name'] = null;
+        }
+
+        $initialMeter = (float) ($request->input('initial_meter') ?? 0);
+        if ($request->tracking_type === 'hours') {
+            $data['current_hours'] = $initialMeter;
+            $data['current_kilometers'] = 0;
+            $data['maintenance_km_threshold'] = null;
+        } else {
+            $data['current_kilometers'] = $initialMeter;
+            $data['current_hours'] = 0;
+            $data['maintenance_hour_threshold'] = null;
+        }
 
         // จัดการรูปภาพ
         if ($request->hasFile('image')) {
@@ -99,12 +133,41 @@ class EquipmentController extends Controller
             'equipment_code' => 'required|unique:equipment,equipment_code,' . $id,
             'name' => 'required',
             'type' => 'required',
+            'custom_type_name' => 'nullable|string|max:100',
+            'equipment_group' => 'required|in:machine,drone',
+            'tracking_type' => 'required|in:hours,kilometers',
             'hourly_rate' => 'required|numeric|min:0',
-            'maintenance_hour_threshold' => 'required|numeric|min:1',
+            'maintenance_hour_threshold' => 'nullable|numeric|min:1',
+            'maintenance_km_threshold' => 'nullable|numeric|min:1',
             'image' => 'nullable|image|max:5120',
         ]);
 
-        $data = $request->all();
+        if ($request->tracking_type === 'hours' && !$request->filled('maintenance_hour_threshold')) {
+            return back()->withErrors(['maintenance_hour_threshold' => 'กรุณากำหนดรอบซ่อมบำรุง (ชั่วโมง)'])->withInput();
+        }
+
+        if ($request->tracking_type === 'kilometers' && !$request->filled('maintenance_km_threshold')) {
+            return back()->withErrors(['maintenance_km_threshold' => 'กรุณากำหนดรอบซ่อมบำรุง (กิโลเมตร)'])->withInput();
+        }
+
+        if ($request->equipment_group === 'drone' && $request->tracking_type !== 'hours') {
+            return back()->withErrors(['tracking_type' => 'โดรน/อุปกรณ์ไฟฟ้า รองรับมิเตอร์แบบชั่วโมงในเวอร์ชันนี้'])->withInput();
+        }
+
+        if ($request->type === 'other' && !$request->filled('custom_type_name')) {
+            return back()->withErrors(['custom_type_name' => 'กรุณาระบุประเภทเพิ่มเติมสำหรับ "อื่นๆ"'])->withInput();
+        }
+
+        $data = $request->except(['image']);
+        if ($request->type !== 'other') {
+            $data['custom_type_name'] = null;
+        }
+
+        if ($request->tracking_type === 'hours') {
+            $data['maintenance_km_threshold'] = null;
+        } else {
+            $data['maintenance_hour_threshold'] = null;
+        }
 
         // จัดการรูปภาพ (ลบรูปเก่า ลงรูปใหม่)
         if ($request->hasFile('image')) {

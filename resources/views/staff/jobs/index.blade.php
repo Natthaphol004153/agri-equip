@@ -112,8 +112,22 @@
                                     class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 text-gray-400">
                                     <i class="fa-solid fa-tractor"></i>
                                 </div>
-                                <p class="text-sm text-gray-600">{{ $job->equipment->name }} <span
-                                        class="text-xs text-gray-400">({{ $job->equipment->equipment_code }})</span></p>
+                                <div>
+                                    <p class="text-sm text-gray-600">{{ $job->equipment->name }} <span
+                                            class="text-xs text-gray-400">({{ $job->equipment->equipment_code }})</span></p>
+                                    @php
+                                        $currentMeter = $job->meter_before_start ??
+                                            (($job->equipment->tracking_type ?? 'hours') === 'kilometers'
+                                                ? ($job->equipment->current_kilometers ?? 0)
+                                                : ($job->equipment->current_hours ?? 0));
+                                        $currentMeterUnit = ($job->equipment->tracking_type ?? 'hours') === 'kilometers'
+                                            ? 'กม.'
+                                            : 'ชม.';
+                                    @endphp
+                                    <p class="text-xs text-blue-600 font-bold mt-0.5">
+                                        ⏱️ มิเตอร์ปัจจุบัน: {{ number_format($currentMeter, 2) }} {{ $currentMeterUnit }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         @if ($job->deposit_amount > 0)
@@ -141,7 +155,7 @@
                             @elseif($job->status == 'in_progress')
                                 {{-- 🟢 แก้ไขการส่งค่า: ส่ง $job->total_price ไปเลย ไม่ต้องส่ง rate ให้หน้าบ้านคำนวณแล้ว --}}
                                 <button type="button"
-                                    onclick="openFinishModal('{{ $job->id }}', '{{ $job->job_number }}', {{ $job->actual_area ?? ($job->estimated_area ?? 0) }}, {{ $job->total_price ?? 0 }}, {{ $job->deposit_amount ?? 0 }}, {{ isset($qrCodes[$job->id]) ? json_encode($qrCodes[$job->id]) : 'null' }}, '{{ $job->payment_status }}')"
+                                    onclick="openFinishModal('{{ $job->id }}', '{{ $job->job_number }}', {{ $job->actual_area ?? ($job->estimated_area ?? 0) }}, {{ $job->total_price ?? 0 }}, {{ $job->deposit_amount ?? 0 }}, {{ isset($qrCodes[$job->id]) ? json_encode($qrCodes[$job->id]) : 'null' }}, '{{ $job->payment_status }}', '{{ $job->equipment->tracking_type ?? 'hours' }}', {{ $job->meter_before_start ?? (($job->equipment->tracking_type ?? 'hours') === 'kilometers' ? ($job->equipment->current_kilometers ?? 0) : ($job->equipment->current_hours ?? 0)) }})"
                                     class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-200 transition active:scale-95">
                                     <i class="fa-solid fa-check-circle"></i> จบงาน
                                 </button>
@@ -358,6 +372,22 @@
                             </template>
 
                             <div class="space-y-3 pt-2">
+                                <div class="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                                    <p class="text-xs text-blue-700 font-bold">มิเตอร์ก่อนเริ่มงาน</p>
+                                    <p class="text-lg font-black text-blue-600"><span x-text="Number(currentMeter).toFixed(2)"></span>
+                                        <span class="text-sm font-bold" x-text="trackingType === 'kilometers' ? 'กม.' : 'ชม.'"></span>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">
+                                        ⏱️ เลขหน้าปัด (<span x-text="trackingType === 'kilometers' ? 'กิโลเมตร' : 'ชั่วโมง'"></span>) *
+                                    </label>
+                                    <input type="number" step="0.1" min="0" name="meter_reading" required
+                                        class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3"
+                                        placeholder="กรอกเลขหน้าปัดปัจจุบัน...">
+                                </div>
+
                                 <div><label class="block text-sm font-bold text-gray-700 mb-1">📸 รูปหน้างาน (บังคับ)
                                         *</label>
                                     <input type="file" name="job_image" required accept="image/*"
@@ -406,6 +436,8 @@
                 paymentMethod: 'transfer',
                 isPaid: false,
                 isSubmitting: false,
+                trackingType: 'hours',
+                currentMeter: 0,
                 
                 formatMoney(amount) {
                     return new Intl.NumberFormat('th-TH', {
@@ -453,7 +485,7 @@
             }
         }
 
-        function openFinishModal(id, number, estimatedArea, total, deposit, qr, paymentStatus) {
+        function openFinishModal(id, number, estimatedArea, total, deposit, qr, paymentStatus, trackingType, currentMeter) {
             const modal = document.getElementById('finishJobModal');
             const xData = Alpine.$data(modal);
 
@@ -469,6 +501,8 @@
             xData.paymentMethod = 'transfer';
             xData.isPaid = ['paid', 'pending_approval'].includes(paymentStatus) ||
                 (paymentStatus === 'deposit_paid' && xData.balance <= 0);
+            xData.trackingType = trackingType || 'hours';
+            xData.currentMeter = parseFloat(currentMeter) || 0;
 
             xData.isSubmitting = false;
             modal.classList.remove('hidden');

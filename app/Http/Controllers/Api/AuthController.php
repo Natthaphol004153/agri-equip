@@ -36,6 +36,7 @@ class AuthController extends Controller
                 'message' => 'ยินดีต้อนรับ ' . $user->name,
                 'user' => $user,
                 'role' => $role,
+                'access_token' => $token,
                 'token' => $token
             ]);
         }

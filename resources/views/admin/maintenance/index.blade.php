@@ -46,7 +46,7 @@
                                         class="text-[10px] text-gray-400">{{ \Carbon\Carbon::parse($issue->created_at)->diffForHumans() }}</span>
                                 </div>
                                 <p class="text-xs text-gray-600 mb-3 line-clamp-2">"{{ $issue->description }}"</p>
-                                <a href="{{ route('admin.maintenance.show_accept', $issue->id) }}"
+                                <a href="{{ route('admin.maintenance.accept_form', $issue->id) }}"
                                     class="block w-full text-center bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 rounded-lg transition">
                                     ตรวจสอบและรับเรื่อง
                                 </a>
@@ -140,39 +140,66 @@
                             <i class="fa-solid fa-clock-rotate-left text-gray-500"></i> ประวัติงานซ่อมล่าสุด
                         </h3>
                     </div>
-                    <div class="p-0 overflow-x-auto">
+                    <div class="p-0 overflow-x-auto rounded-xl shadow-sm border border-gray-100">
                         <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-white border-b text-gray-500">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
                                 <tr>
-                                    <th class="px-4 py-3">วันที่ซ่อมเสร็จ</th>
-                                    <th class="px-4 py-3">เครื่องจักร</th>
-                                    <th class="px-4 py-3">รายละเอียด</th>
-                                    <th class="px-4 py-3">อู่/ช่าง</th>
-                                    <th class="px-4 py-3 text-right">ค่าใช้จ่าย</th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">วันที่ซ่อมเสร็จ
+                                    </th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">เครื่องจักร</th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">รายละเอียด</th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">อู่/ช่าง</th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-right">
+                                        ค่าใช้จ่าย</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                @foreach ($history as $log)
-                                    <tr class="hover:bg-gray-50 transition">
-                                        <td class="px-4 py-3 text-xs">
-                                            {{ \Carbon\Carbon::parse($log->completion_date)->format('d/m/Y') }}</td>
-                                        <td class="px-4 py-3 font-bold text-gray-700">{{ $log->equipment->name }}</td>
-                                        <td class="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate"
-                                            title="{{ $log->description }}">{{ $log->description }}</td>
-                                        <td class="px-4 py-3 text-xs">{{ $log->service_provider ?? '-' }}</td>
-                                        {{-- 🟢 อัปเดตส่วนปุ่มแสดงรูปใบเสร็จตรงนี้ --}}
-                                        <td class="px-4 py-3 text-right font-bold text-red-500">
-                                            <div class="flex items-center justify-end gap-2">
-                                                @if($log->receipt_image)
-                                                    <a href="{{ asset('storage/' . $log->receipt_image) }}" target="_blank" class="text-blue-500 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded-md text-xs transition border border-blue-200" title="ดูรูปใบเสร็จ">
+                            <tbody class="divide-y divide-gray-100 bg-white">
+                                @forelse ($history as $log)
+                                    <tr class="hover:bg-blue-50/50 transition duration-150 ease-in-out group">
+                                        <td class="px-4 py-3.5 text-xs text-gray-500">
+                                            <div class="flex items-center gap-1.5">
+                                                <i class="fa-regular fa-calendar text-gray-400"></i>
+                                                {{ \Carbon\Carbon::parse($log->completion_date)->format('d/m/Y') }}
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3.5 font-bold text-gray-800">
+                                            {{ $log->equipment->name }}
+                                        </td>
+                                        <td class="px-4 py-3.5 text-xs text-gray-600 max-w-[200px] truncate"
+                                            title="{{ $log->description }}">
+                                            {{ $log->description ?: '-' }}
+                                        </td>
+                                        <td class="px-4 py-3.5 text-xs">
+                                            <span
+                                                class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-600 font-medium">
+                                                {{ $log->service_provider ?? '-' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3.5 text-right">
+                                            <div class="flex items-center justify-end gap-3">
+                                                @if ($log->receipt_image)
+                                                    <a href="{{ asset('storage/' . $log->receipt_image) }}" target="_blank"
+                                                        class="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md text-xs font-bold transition border border-blue-200 shadow-sm"
+                                                        title="ดูรูปใบเสร็จ">
                                                         <i class="fa-solid fa-file-invoice"></i> บิล
                                                     </a>
                                                 @endif
-                                                <span>{{ number_format($log->total_cost) }} ฿</span>
+                                                <span
+                                                    class="font-bold text-red-500 text-sm">{{ number_format($log->total_cost) }}
+                                                    ฿</span>
                                             </div>
                                         </td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <i class="fa-solid fa-inbox text-3xl mb-2 opacity-50"></i>
+                                                <p class="text-sm font-medium">ไม่มีประวัติการซ่อม</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -184,7 +211,8 @@
         {{-- 🔥 MODAL: จบงานซ่อม --}}
         <div x-show="finishModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm" @click="finishModal = false">
+                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm"
+                    @click="finishModal = false">
                 </div>
 
                 <div
@@ -199,7 +227,8 @@
                     <p class="text-sm text-gray-500 mb-4">เครื่องจักร: <span class="font-bold text-blue-600"
                             x-text="equipName"></span></p>
 
-                    <form :action="'/admin/maintenance/log/' + logId + '/finish'" method="POST" enctype="multipart/form-data">
+                    <form :action="'/admin/maintenance/log/' + logId + '/finish'" method="POST"
+                        enctype="multipart/form-data">
                         @csrf
                         <div class="space-y-4">
                             <div>

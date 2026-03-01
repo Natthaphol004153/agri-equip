@@ -20,9 +20,19 @@ class MaintenanceController extends Controller
             ->get();
 
         // รถถึงระยะซ่อม
-        $needMaintenance = Equipment::whereRaw('current_hours >= maintenance_hour_threshold')
-            ->where('current_status', 'available') 
-            ->get();
+        $needMaintenance = Equipment::where('current_status', 'available')
+            ->where(function ($query) {
+                // แบบที่ 1: ถึงระยะชั่วโมงทำงาน
+                $query->where(function ($q) {
+                    $q->where('tracking_type', 'hours')
+                        ->whereRaw('current_hours >= maintenance_hour_threshold');
+                })
+                    // แบบที่ 2: ถึงระยะกิโลเมตร
+                    ->orWhere(function ($q) {
+                    $q->where('tracking_type', 'kilometers')
+                        ->whereRaw('current_kilometers >= maintenance_km_threshold');
+                });
+            })->get();
 
         // กำลังซ่อม
         $inMaintenance = MaintenanceLog::where('status', 'in_progress')
@@ -35,7 +45,7 @@ class MaintenanceController extends Controller
             ->latest()
             ->take(10)
             ->get();
-            
+
         // ส่งข้อมูลรถไปหน้า Index ด้วย (เผื่อใช้ Modal หรือ Dropdown)
         $equipments = Equipment::where('current_status', 'available')->get();
 
@@ -57,11 +67,11 @@ class MaintenanceController extends Controller
         ]);
 
         $log = MaintenanceLog::findOrFail($logId);
-        
+
         $log->update([
             'status' => 'in_progress',
             'description' => $log->description . " | Admin Note: " . $request->admin_note,
-            'maintenance_date' => now(), 
+            'maintenance_date' => now(),
         ]);
 
         // ล็อกรถ
@@ -75,11 +85,11 @@ class MaintenanceController extends Controller
     {
         // ดึงรถที่สถานะ Available
         $equipments = Equipment::where('current_status', 'available')->get();
-        
+
         // ถ้าไม่มีรถว่างเลย ให้ส่ง array ว่างไปป้องกัน error (หรือจะดึงทั้งหมดก็ได้)
-        if($equipments->isEmpty()) {
-             // กรณีอยากดึงรถทั้งหมดมาแสดงแม้ไม่ว่าง (Optional)
-             // $equipments = Equipment::all();
+        if ($equipments->isEmpty()) {
+            // กรณีอยากดึงรถทั้งหมดมาแสดงแม้ไม่ว่าง (Optional)
+            // $equipments = Equipment::all();
         }
 
         return view('admin.maintenance.create', compact('equipments'));
@@ -146,7 +156,7 @@ class MaintenanceController extends Controller
             'total_cost' => $request->total_cost,
             'service_provider' => $request->service_provider,
             'description' => $log->description . ($request->note ? ' | จบงาน: ' . $request->note : ''),
-            'reset_counter' => $isReset, 
+            'reset_counter' => $isReset,
             'status' => 'completed'
         ];
 

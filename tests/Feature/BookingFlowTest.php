@@ -32,7 +32,8 @@ class BookingFlowTest extends TestCase
         // 2. จำลองข้อมูล Customer
         $this->customer = Customer::create([
             'name' => 'Test Customer', 
-            'phone' => '0800000000'
+            'phone' => '0800000000',
+            'password' => '1234'
         ]);
         
         // 3. จำลองข้อมูล Equipment (จุดที่แก้!)
@@ -60,7 +61,7 @@ class BookingFlowTest extends TestCase
             'assigned_staff_id' => $this->staff->id,
             'scheduled_start' => '2025-12-30 09:00:00',
             'scheduled_end' => '2025-12-30 10:00:00',
-            'total_price' => 5000,
+            'actual_area' => 10,
             'deposit_amount' => 1000,
         ]);
 
@@ -86,6 +87,7 @@ class BookingFlowTest extends TestCase
             'scheduled_start' => '2025-12-30 09:00:00',
             'scheduled_end' => '2025-12-30 10:00:00',
             'total_price' => 5000,
+            'actual_area' => 10,
             'status' => 'scheduled'
         ]);
 
@@ -96,7 +98,7 @@ class BookingFlowTest extends TestCase
             'assigned_staff_id' => $this->staff->id,
             'scheduled_start' => '2025-12-30 09:30:00', // ทับกับงานเก่า
             'scheduled_end' => '2025-12-30 10:30:00',
-            'total_price' => 5000,
+            'actual_area' => 10,
         ]);
 
         // ต้องเจอ Error ใน Session
@@ -118,6 +120,7 @@ class BookingFlowTest extends TestCase
             'scheduled_start' => '2025-12-30 09:00:00',
             'scheduled_end' => '2025-12-30 10:00:00',
             'total_price' => 5000,
+            'actual_area' => 10,
             'status' => 'scheduled'
         ]);
 
@@ -128,7 +131,7 @@ class BookingFlowTest extends TestCase
             'assigned_staff_id' => $this->staff->id,
             'scheduled_start' => '2025-12-30 10:30:00', 
             'scheduled_end' => '2025-12-30 11:30:00',
-            'total_price' => 5000,
+            'actual_area' => 10,
         ]);
 
         // ต้องผ่าน
