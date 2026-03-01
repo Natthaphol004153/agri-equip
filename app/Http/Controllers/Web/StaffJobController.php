@@ -110,22 +110,17 @@ class StaffJobController extends Controller
             ->where('assigned_staff_id', Auth::id())
             ->firstOrFail();
 
-        // 🚩 แก้ไขจุดที่ 1: เติมค่า actual_area เข้าไปใน Request object เลย 
-        // หากพนักงานไม่ได้กรอกมา (ค่าว่าง) ให้ดึงค่าพื้นที่ประเมินจากฐานข้อมูลมาใส่แทนอัตโนมัติ
-        $request->merge([
-            'actual_area' => $request->input('actual_area') ?: ($job->estimated_area ?? 0)
-        ]);
+        // 1. รับค่าพื้นที่ทำจริง (เก็บเป็นสถิติเฉยๆ ไม่เอาไปคูณเงิน)
+        $actualArea = $request->input('actual_area') ?: ($job->estimated_area ?? 0);
+        $request->merge(['actual_area' => $actualArea]);
 
-        // 🟢 คำนวณราคาใหม่เพื่อเช็คยอดคงเหลือ
-        $actualArea = $request->actual_area;
-        $pricePerRai = $job->price_per_rai_at_booking ?? ($job->equipment->price_per_rai ?? 0);
-        $newTotalPrice = $actualArea * $pricePerRai;
-        $balance = $newTotalPrice - $job->deposit_amount;
+        // 2. ใช้ยอดเงินเดิมที่แอดมินตั้งไว้เลย (ไม่มีการคำนวณใหม่)
+        $balance = $job->total_price - $job->deposit_amount;
 
         $isAlreadyPaid = in_array($job->payment_status, ['paid', 'pending_approval']) ||
             ($job->payment_status == 'deposit_paid' && $balance <= 0);
 
-        // 🟢 2. Validate ข้อมูล (ตอนนี้ 'actual_area' จะไม่ว่างแล้วเพราะเรา merge ไว้ข้างบน)
+        // 3. Validate ข้อมูล
         $rules = [
             'actual_area' => 'required|numeric|min:0.1',
             'job_image' => 'required|image|max:10240',
@@ -141,14 +136,11 @@ class StaffJobController extends Controller
 
         $request->validate($rules);
 
-        $endTime = Carbon::now();
-
-        // 🟢 3. อัปเดตข้อมูล
+        // 4. เตรียมอัปเดตข้อมูล (ไม่ต้องแก้ total_price แล้ว)
         $updateData = [
             'status' => 'completed_pending_approval',
-            'actual_end' => $endTime,
-            'actual_area' => $actualArea,
-            'total_price' => $newTotalPrice,
+            'actual_end' => Carbon::now(),
+            'actual_area' => $actualArea, // บันทึกแค่ไร่ที่ทำจริง
             'note' => $request->note,
         ];
 
@@ -159,7 +151,6 @@ class StaffJobController extends Controller
         if (!$isAlreadyPaid && $balance > 0) {
             $updateData['payment_status'] = 'paid';
             $updateData['payment_method'] = $request->payment_method;
-
             if ($request->hasFile('payment_proof')) {
                 $updateData['payment_proof'] = $request->file('payment_proof')->store('payments', 'public');
             }
@@ -167,7 +158,16 @@ class StaffJobController extends Controller
 
         $job->update($updateData);
 
-        return redirect()->route('staff.jobs.index')->with('success', "บันทึกข้อมูลเรียบร้อยแล้ว");
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'บันทึกข้อมูลเสร็จสิ้น',
+                'job_id' => $job->id,
+                'new_status' => 'completed'
+            ]);
+        }
+
+        return back()->with('success', "บันทึกข้อมูลเรียบร้อยแล้ว");
     }
 
     public function history()
@@ -239,11 +239,13 @@ class StaffJobController extends Controller
         return back()->with('success', 'บันทึกข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว สถานะอุปกรณ์ถูกเปลี่ยนเป็น Maintenance');
     }
 
+    // --- ส่วนของระบบแจ้งซ่อม (Staff Maintenance) ---
+
     public function maintenanceIndex()
     {
+        // ดึงประวัติที่พนักงานคนนี้เคยกดแจ้งไว้
         $myMaintenanceLogs = MaintenanceLog::with('equipment')
-            ->latest()
-            ->limit(20)
+            ->orderBy('created_at', 'desc')
             ->get();
 
         return view('staff.maintenance.index', compact('myMaintenanceLogs'));
@@ -251,13 +253,50 @@ class StaffJobController extends Controller
 
     public function createReport()
     {
+        // ดึงรถทั้งหมดมาให้พนักงานเลือก
         $equipments = Equipment::all();
         return view('staff.maintenance.create', compact('equipments'));
     }
 
     public function storeReport(Request $request)
     {
-        return $this->reportGeneral($request);
+        // 1. ตรวจสอบข้อมูล
+        $request->validate([
+            'equipment_id' => 'required|exists:equipment,id',
+            'description' => 'required|string',
+            'image' => 'nullable|image|max:10240', // รูปถ่าย ไม่เกิน 10MB
+        ]);
+
+        // 2. จัดการอัปโหลดรูปภาพ (ถ้ามี)
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('maintenance_issues', 'public');
+        }
+
+        // 3. บันทึกลงตาราง MaintenanceLog
+        MaintenanceLog::create([
+            'equipment_id' => $request->equipment_id,
+            'description' => $request->description,
+            'image_url' => $imagePath, // บันทึกรูปหน้างาน
+            'status' => 'pending',     // สถานะ: รอแอดมินรับเรื่อง
+            'total_cost' => 0,
+        ]);
+
+        // 4. เปลี่ยนสถานะรถคันนั้นเป็น "กำลังซ่อม" เพื่อไม่ให้แอดมินเผลอจัดคิวงานให้
+        Equipment::where('id', $request->equipment_id)->update([
+            'current_status' => 'maintenance'
+        ]);
+
+        // 5. เด้งกลับหน้าประวัติ พร้อมข้อความสำเร็จ
+        return redirect()->route('staff.maintenance.index')
+            ->with('success', 'ส่งเรื่องแจ้งซ่อมเรียบร้อยแล้ว กรุณารอแอดมินตรวจสอบครับ');
+    }
+
+    public function showReport($id)
+    {
+        // ดึงรายละเอียดเพื่อแสดงในหน้า Show
+        $log = MaintenanceLog::with('equipment')->findOrFail($id);
+        return view('staff.maintenance.show', compact('log'));
     }
 
     public function reportIssue(Request $request, $jobId)

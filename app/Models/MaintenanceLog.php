@@ -22,7 +22,8 @@ class MaintenanceLog extends Model
         'total_cost',
         'service_provider',
         'reset_counter',
-        'image_url',
+        'image_url', // 👈 อันนี้รูปตอนแจ้งเสีย
+        'receipt_image',
         'maintenance_date',
         'completion_date',
     ];

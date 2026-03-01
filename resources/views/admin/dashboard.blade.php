@@ -14,7 +14,7 @@
             <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="text-center md:text-left">
                     <h2 class="text-2xl font-bold mb-1 flex items-center gap-2">
-                        <i class="fa-solid fa-bolt text-yellow-300"></i> ศูนย์ปฏิบัติการ (Operation Center)
+                        <i class="fa-solid fa-bolt text-yellow-300"></i> ศูนย์ปฏิบัติการ
                     </h2>
                     <p class="text-green-100 text-sm">ยินดีต้อนรับ! นี่คือสรุปงานที่คุณต้องจัดการในวันนี้</p>
                 </div>
@@ -108,15 +108,44 @@
                 </div>
                 <div class="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-3">
                     @forelse ($todayJobs ?? [] as $job)
-                        <div class="border border-gray-100 p-3 rounded-xl hover:border-agri-primary/50 transition bg-white shadow-sm">
+                        @php
+                            // แปลงสถานะเป็นรูปแบบและสีที่เข้าใจง่าย
+                            $statusConfig = match ($job->status ?? 'pending') {
+                                'pending' => ['label' => 'รออนุมัติ', 'color' => 'text-gray-600 bg-gray-100 border-gray-200', 'icon' => 'fa-clock'],
+                                'scheduled' => ['label' => 'รอเริ่มงาน', 'color' => 'text-yellow-700 bg-yellow-50 border-yellow-200', 'icon' => 'fa-calendar-check'],
+                                'in_progress' => ['label' => 'กำลังทำงาน', 'color' => 'text-blue-700 bg-blue-50 border-blue-200 animate-pulse', 'icon' => 'fa-spinner fa-spin'],
+                                'completed_pending_approval' => ['label' => 'รอตรวจเงิน', 'color' => 'text-orange-700 bg-orange-50 border-orange-200', 'icon' => 'fa-file-invoice-dollar'],
+                                'completed' => ['label' => 'เสร็จสิ้น', 'color' => 'text-green-700 bg-green-50 border-green-200', 'icon' => 'fa-check-circle'],
+                                'cancelled' => ['label' => 'ยกเลิก', 'color' => 'text-red-700 bg-red-50 border-red-200', 'icon' => 'fa-ban'],
+                                default => ['label' => $job->status ?? '-', 'color' => 'text-gray-600 bg-gray-100', 'icon' => 'fa-circle'],
+                            };
+                        @endphp
+                        <div class="border border-gray-100 p-3 rounded-xl hover:border-agri-primary/50 transition bg-white shadow-sm flex flex-col justify-between">
                             <div class="flex justify-between items-start mb-2">
-                                <span class="font-bold text-gray-800">{{ $job->job_number }}</span>
-                                <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-gray-800">{{ $job->job_number }}</span>
+                                    {{-- 🟢 ป้ายสถานะ --}}
+                                    <span class="text-[10px] px-2 py-0.5 rounded-md border font-bold flex items-center {{ $statusConfig['color'] }}">
+                                        <i class="fa-solid {{ $statusConfig['icon'] }} mr-1"></i> {{ $statusConfig['label'] }}
+                                    </span>
+                                </div>
+                                <span class="text-[10px] bg-gray-50 text-gray-600 px-2 py-1 rounded-lg font-bold border border-gray-100 whitespace-nowrap">
                                     <i class="fa-regular fa-clock mr-1"></i>{{ $job->time_range }}
                                 </span>
                             </div>
-                            <p class="text-sm text-gray-600 mb-1"><i class="fa-solid fa-user text-gray-400 text-xs w-4"></i> {{ $job->customer_name }}</p>
-                            <p class="text-xs text-gray-500"><i class="fa-solid fa-tractor text-orange-400 text-xs w-4"></i> {{ $job->equipment_name }}</p>
+                            
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-1"><i class="fa-solid fa-user text-gray-400 text-xs w-4"></i> {{ $job->customer_name }}</p>
+                                    <p class="text-xs text-gray-500"><i class="fa-solid fa-tractor text-orange-400 text-xs w-4"></i> {{ $job->equipment_name }}</p>
+                                </div>
+                                {{-- 🟢 ปุ่มดูรายละเอียด --}}
+                                @if(isset($job->id))
+                                    <a href="{{ route('admin.jobs.show', $job->id) }}" class="text-[10px] bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-50 transition shadow-sm font-medium">
+                                        จัดการ <i class="fa-solid fa-chevron-right ml-0.5"></i>
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50">

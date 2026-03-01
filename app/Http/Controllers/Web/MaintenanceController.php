@@ -128,39 +128,42 @@ class MaintenanceController extends Controller
     }
 
     // 7. จบงานซ่อม
+    // 7. จบงานซ่อม
     public function finish(Request $request, $id)
     {
-        // ✅ เปลี่ยน Validate ให้ตรงกับฟิลด์ใหม่
         $request->validate([
             'total_cost' => 'required|numeric',
             'service_provider' => 'nullable|string',
             'note' => 'nullable|string',
+            'receipt_image' => 'nullable|image|max:10240', // 🟢 เพิ่มการตรวจสอบไฟล์รูป
         ]);
 
         $log = MaintenanceLog::findOrFail($id);
-        
-        // ตรวจสอบว่ามีการเลือกรีเซ็ตชั่วโมงหรือไม่
         $isReset = $request->has('reset_hours');
 
-        // ✅ อัปเดตข้อมูลด้วยคอลัมน์ใหม่
-        $log->update([
+        $updateData = [
             'completion_date' => now(),
             'total_cost' => $request->total_cost,
             'service_provider' => $request->service_provider,
             'description' => $log->description . ($request->note ? ' | จบงาน: ' . $request->note : ''),
-            'reset_counter' => $isReset, // ✅ บันทึกประวัติการรีเซ็ต
+            'reset_counter' => $isReset, 
             'status' => 'completed'
-        ]);
+        ];
 
-        // ปลดล็อกรถ
-        $updateData = ['current_status' => 'available'];
-        
-        if ($isReset) {
-            $updateData['current_hours'] = 0;
+        // 🟢 ถ้ามีการอัปโหลดรูปใบเสร็จ
+        if ($request->hasFile('receipt_image')) {
+            $updateData['receipt_image'] = $request->file('receipt_image')->store('maintenance_receipts', 'public');
         }
 
-        $log->equipment->update($updateData);
+        $log->update($updateData);
 
-        return redirect()->route('admin.maintenance.index')->with('success', 'ซ่อมเสร็จสิ้น! รถพร้อมใช้งานแล้วครับ 🚜💨');
+        // ปลดล็อกรถ
+        $updateEqData = ['current_status' => 'available'];
+        if ($isReset) {
+            $updateEqData['current_hours'] = 0;
+        }
+        $log->equipment->update($updateEqData);
+
+        return redirect()->route('admin.maintenance.index')->with('success', 'ซ่อมเสร็จสิ้น! บันทึกข้อมูลและใบเสร็จเรียบร้อย 🚜💨');
     }
 }

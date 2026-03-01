@@ -42,7 +42,8 @@
             <div class="flex items-start gap-4 mb-4">
                 <div
                     class="w-12 h-12 rounded-full bg-agri-bg flex items-center justify-center text-agri-primary text-xl flex-shrink-0">
-                    <i class="fa-solid fa-user-tag"></i></div>
+                    <i class="fa-solid fa-user-tag"></i>
+                </div>
                 <div>
                     <h5 class="font-bold text-gray-800 text-lg">{{ $job->customer->name }}</h5>
                     <p class="text-sm text-gray-500 mt-1 leading-relaxed"><i
@@ -208,18 +209,18 @@
                             @csrf
 
                             {{-- ✅ 1. ให้พนักงานกรอกพื้นที่ทำจริง --}}
+                            {{-- 🌾 ส่วนแสดงพื้นที่ (ล็อคค่าตามใบจอง) --}}
                             <div class="mb-5 border-b border-gray-100 pb-5">
-                                <label class="block text-sm font-bold text-gray-700 mb-2">จำนวนพื้นที่ที่ทำจริง (ไร่) <span
-                                        class="text-red-500">*</span></label>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">จำนวนพื้นที่
+                                    (ตกลงไว้ตามใบจอง)</label>
                                 <div class="relative">
-                                    <input type="number" name="actual_area" x-model="actualArea" step="0.1"
-                                        min="0.1" required
-                                        class="w-full pl-4 pr-12 py-3 rounded-xl border-2 border-green-200 focus:ring-0 focus:border-green-500 text-lg font-bold text-green-700">
+                                    <input type="number" name="actual_area" x-model.number="actualArea" readonly
+                                        class="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-gray-100 text-lg font-bold text-gray-500 cursor-not-allowed focus:ring-0">
                                     <span
-                                        class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-500 font-bold">ไร่</span>
+                                        class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400 font-bold">ไร่</span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1"><i class="fa-solid fa-circle-info"></i>
-                                    ค่าเริ่มต้นคือพื้นที่ประเมิน สามารถแก้ไขได้ตามจริง</p>
+                                <p class="text-xs text-red-500/80 mt-1.5 font-medium"><i class="fa-solid fa-lock"></i>
+                                    ค่าพื้นที่และยอดเงินถูกล็อคตามที่แอดมินระบุไว้</p>
                             </div>
 
                             {{-- 2. ยอดเงินคงเหลือ (คำนวณสด) --}}

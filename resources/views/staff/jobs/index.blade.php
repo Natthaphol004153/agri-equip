@@ -35,7 +35,6 @@
 
         {{-- 1. ส่วนหัวข้อและสรุปยอด --}}
         <div class="grid grid-cols-2 gap-3 mb-6">
-            {{-- ... (โค้ดเดิมส่วน Card สถิติ) ... --}}
             <div class="bg-blue-500 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 relative overflow-hidden group">
                 <div
                     class="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2 group-hover:scale-110 transition">
@@ -55,7 +54,6 @@
             </div>
         </div>
 
-        {{-- ... (โค้ดส่วนอื่นคงเดิม จนถึง Script) ... --}}
         {{-- ปุ่มลัด --}}
         <div class="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
             <a href="{{ route('staff.fuel.create') }}"
@@ -132,6 +130,7 @@
                             <a href="{{ route('staff.jobs.show', $job->id) }}"
                                 class="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition active:scale-95"><i
                                     class="fa-solid fa-eye"></i> ดูรายละเอียด</a>
+
                             @if ($job->status == 'scheduled')
                                 <form action="{{ route('staff.jobs.start', $job->id) }}" method="POST" class="block">
                                     @csrf
@@ -140,10 +139,12 @@
                                             class="fa-solid fa-play"></i> เริ่มงาน</button>
                                 </form>
                             @elseif($job->status == 'in_progress')
+                                {{-- 🟢 แก้ไขการส่งค่า: ส่ง $job->total_price ไปเลย ไม่ต้องส่ง rate ให้หน้าบ้านคำนวณแล้ว --}}
                                 <button type="button"
-                                    onclick="openFinishModal('{{ $job->id }}', '{{ $job->job_number }}', {{ $job->total_price }}, {{ $job->deposit_amount }}, {{ isset($qrCodes[$job->id]) ? json_encode($qrCodes[$job->id]) : 'null' }}, '{{ $job->payment_status }}')"
-                                    class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-200 transition active:scale-95"><i
-                                        class="fa-solid fa-check-circle"></i> จบงาน</button>
+                                    onclick="openFinishModal('{{ $job->id }}', '{{ $job->job_number }}', {{ $job->actual_area ?? ($job->estimated_area ?? 0) }}, {{ $job->total_price ?? 0 }}, {{ $job->deposit_amount ?? 0 }}, {{ isset($qrCodes[$job->id]) ? json_encode($qrCodes[$job->id]) : 'null' }}, '{{ $job->payment_status }}')"
+                                    class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-md shadow-blue-200 transition active:scale-95">
+                                    <i class="fa-solid fa-check-circle"></i> จบงาน
+                                </button>
                             @endif
                         </div>
                     </div>
@@ -188,7 +189,7 @@
         @endif
     </div>
 
-    {{-- MODAL: แจ้งซ่อม (คงเดิม) --}}
+    {{-- MODAL: แจ้งซ่อม --}}
     <div id="generalReportModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
         aria-modal="true">
         <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm"
@@ -199,16 +200,17 @@
                     class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg w-full">
                     <div class="bg-red-600 px-4 py-4 sm:px-6 flex justify-between items-center">
                         <h3 class="text-lg font-bold leading-6 text-white flex items-center gap-2"><i
-                                class="fa-solid fa-screwdriver-wrench"></i> แจ้งซ่อม/แจ้งรถเสีย</h3><button type="button"
-                            class="text-red-100 hover:text-white"
+                                class="fa-solid fa-screwdriver-wrench"></i> แจ้งซ่อม/แจ้งรถเสีย</h3>
+                        <button type="button" class="text-red-100 hover:text-white"
                             onclick="document.getElementById('generalReportModal').classList.add('hidden')"><i
                                 class="fa-solid fa-times text-xl"></i></button>
                     </div>
                     <form action="{{ route('staff.report_general') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="px-4 py-5 sm:p-6 space-y-4">
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">เลือกเครื่องจักร
-                                    *</label><select name="equipment_id" required
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">เลือกเครื่องจักร *</label>
+                                <select name="equipment_id" required
                                     class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 py-3">
                                     <option value="">-- แตะเพื่อเลือก --</option>
                                     @foreach ($equipments as $eq)
@@ -216,20 +218,24 @@
                                             ({{ $eq->equipment_code }})
                                         </option>
                                     @endforeach
-                                </select></div>
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">อาการเสีย *</label>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">อาการเสีย *</label>
                                 <textarea name="description" rows="3" required
                                     class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 p-3"
                                     placeholder="ระบุอาการให้ชัดเจน..."></textarea>
                             </div>
-                            <div><label class="block text-sm font-bold text-gray-700 mb-1">รูปถ่าย (ถ้ามี)</label><input
-                                    type="file" name="image" accept="image/*" capture="environment"
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">รูปถ่าย (ถ้ามี)</label>
+                                <input type="file" name="image" accept="image/*" capture="environment"
                                     class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100" />
                             </div>
                         </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6"><button type="submit"
-                                class="inline-flex w-full justify-center rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">ยืนยันแจ้งซ่อม</button><button
-                                type="button"
+                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                            <button type="submit"
+                                class="inline-flex w-full justify-center rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">ยืนยันแจ้งซ่อม</button>
+                            <button type="button"
                                 class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-3 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                                 onclick="document.getElementById('generalReportModal').classList.add('hidden')">ยกเลิก</button>
                         </div>
@@ -239,7 +245,7 @@
         </div>
     </div>
 
-    {{-- MODAL: จบงาน (Smart Offline) --}}
+    {{-- 🟢 MODAL: จบงาน (อัปเดตใหม่ รองรับระบบไร่ แบบ Fixed Price) --}}
     <div id="finishJobModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
         aria-modal="true" x-data="finishJobData()">
         <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
@@ -247,32 +253,53 @@
             <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
                 <div
                     class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg w-full">
+
                     <div class="bg-blue-600 px-4 py-4 flex justify-between items-center text-white">
                         <h3 class="text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-flag-checkered"></i>
-                            สรุปจบงาน <span x-text="'#' + jobNumber"></span></h3><button @click="closeModal()"
-                            class="text-blue-100 hover:text-white"><i class="fa-solid fa-times text-xl"></i></button>
+                            สรุปจบงาน <span x-text="'#' + jobNumber"></span></h3>
+                        <button @click="closeModal()" class="text-blue-100 hover:text-white"><i
+                                class="fa-solid fa-times text-xl"></i></button>
                     </div>
+
                     <form :action="'/staff/jobs/' + jobId + '/finish'" method="POST" enctype="multipart/form-data"
                         @submit="isSubmitting = true">
                         @csrf
                         <div class="p-6 space-y-5">
-                            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                                <div class="flex justify-between text-sm mb-1"><span
-                                        class="text-gray-500">ราคารวม:</span><span class="font-bold"
-                                        x-text="formatMoney(totalPrice)"></span></div>
-                                <div class="flex justify-between text-sm mb-1 text-red-500"><span>หัก มัดจำ:</span><span
-                                        x-text="'-' + formatMoney(depositAmount)"></span></div>
-                                <div
-                                    class="flex justify-between text-lg font-bold text-blue-600 border-t border-gray-200 pt-2 mt-2">
-                                    <span>ยอดต้องชำระ:</span><span x-text="formatMoney(balance)"></span>
+
+                            {{-- 🌾 ส่วนแสดงพื้นที่ (ล็อคค่าตามใบจอง) --}}
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-2">จำนวนพื้นที่</label>
+                                <div class="relative">
+                                    <input type="number" name="actual_area" x-model.number="actualArea" readonly
+                                        class="w-full pl-4 pr-12 py-3 rounded-xl border border-gray-200 bg-gray-100 text-lg font-bold text-gray-500 cursor-not-allowed focus:ring-0">
+                                    <span
+                                        class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-gray-400 font-bold">ไร่</span>
                                 </div>
                             </div>
-                            <template x-if="isPaid">
+
+                            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-500">ราคารวม:</span>
+                                    <span class="font-bold" x-text="formatMoney(totalPrice)"></span>
+                                </div>
+                                <div class="flex justify-between text-sm mb-1 text-red-500">
+                                    <span>หัก มัดจำ:</span>
+                                    <span x-text="'-' + formatMoney(depositAmount)"></span>
+                                </div>
+                                <div
+                                    class="flex justify-between text-lg font-bold text-blue-600 border-t border-gray-200 pt-2 mt-2">
+                                    <span>ยอดต้องชำระ:</span>
+                                    <span x-text="formatMoney(balance)"></span>
+                                </div>
+                            </div>
+
+                            <template x-if="isPaid || balance <= 0">
                                 <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg flex gap-3">
                                     <div class="text-green-500 text-xl"><i class="fa-solid fa-circle-check"></i></div>
                                     <div>
-                                        <h4 class="font-bold text-green-800 text-sm">ลูกค้าชำระเงินแล้ว</h4>
-                                        <p class="text-xs text-green-600 mt-1">ไม่ต้องเก็บเงินเพิ่ม สามารถบันทึกจบงานได้เลย</p>
+                                        <h4 class="font-bold text-green-800 text-sm">ไม่ต้องเก็บเงินเพิ่ม</h4>
+                                        <p class="text-xs text-green-600 mt-1">ยอดเงินเคลียร์แล้ว สามารถบันทึกจบงานได้เลย
+                                        </p>
                                     </div>
                                 </div>
                             </template>
@@ -280,20 +307,31 @@
                             <template x-if="!isPaid && balance > 0">
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-bold text-gray-700 mb-2">วิธีชำระเงิน</label>
+                                        <label
+                                            class="block text-sm font-bold text-gray-700 mb-2">วิธีชำระเงินของลูกค้า</label>
                                         <div class="grid grid-cols-2 gap-3">
                                             <label class="cursor-pointer">
-                                                <input type="radio" name="payment_method" value="transfer" class="peer sr-only" x-model="paymentMethod">
-                                                <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-green-500 peer-checked:bg-green-50 transition hover:bg-gray-50">
-                                                    <i class="fa-solid fa-qrcode text-xl mb-1 text-gray-500 peer-checked:text-green-600"></i>
-                                                    <div class="text-sm font-bold text-gray-600 peer-checked:text-green-700">โอนจ่าย</div>
+                                                <input type="radio" name="payment_method" value="transfer"
+                                                    class="peer sr-only" x-model="paymentMethod">
+                                                <div
+                                                    class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-green-500 peer-checked:bg-green-50 transition hover:bg-gray-50">
+                                                    <i
+                                                        class="fa-solid fa-qrcode text-xl mb-1 text-gray-500 peer-checked:text-green-600"></i>
+                                                    <div
+                                                        class="text-sm font-bold text-gray-600 peer-checked:text-green-700">
+                                                        โอนจ่าย</div>
                                                 </div>
                                             </label>
                                             <label class="cursor-pointer">
-                                                <input type="radio" name="payment_method" value="cash" class="peer sr-only" x-model="paymentMethod">
-                                                <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-blue-500 peer-checked:bg-blue-50 transition hover:bg-gray-50">
-                                                    <i class="fa-solid fa-money-bill-wave text-xl mb-1 text-gray-500 peer-checked:text-blue-600"></i>
-                                                    <div class="text-sm font-bold text-gray-600 peer-checked:text-blue-700">เงินสด</div>
+                                                <input type="radio" name="payment_method" value="cash"
+                                                    class="peer sr-only" x-model="paymentMethod">
+                                                <div
+                                                    class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-blue-500 peer-checked:bg-blue-50 transition hover:bg-gray-50">
+                                                    <i
+                                                        class="fa-solid fa-money-bill-wave text-xl mb-1 text-gray-500 peer-checked:text-blue-600"></i>
+                                                    <div
+                                                        class="text-sm font-bold text-gray-600 peer-checked:text-blue-700">
+                                                        เงินสด</div>
                                                 </div>
                                             </label>
                                         </div>
@@ -303,88 +341,135 @@
                                         <div x-show="qrPayload" class="text-center mb-3">
                                             <p class="text-sm font-bold text-gray-700 mb-2">สแกนจ่ายผ่าน QR Code</p>
                                             <div class="bg-white p-2 inline-block border rounded-lg shadow-sm"><img
-                                                    :src="'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + qrPayload"
+                                                    :src="'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' +
+                                                    qrPayload"
                                                     class="w-40 h-40 mx-auto"></div>
-                                        </div>
-                                        <div class="bg-blue-50 border-l-4 border-blue-400 p-3 rounded-r-lg flex gap-3">
-                                            <div class="flex-shrink-0 text-blue-500 py-1"><i class="fa-solid fa-robot"></i></div>
-                                            <div class="text-sm text-blue-800"><strong>EasySlip AI:</strong>
-                                                ระบบจะตรวจสอบยอดเงินและความถูกต้องของสลิปอัตโนมัติ กรุณารอสักครู่หลังจากกดส่ง</div>
                                         </div>
                                     </div>
 
-                                    <div x-show="paymentMethod === 'cash'" class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                                        <div class="text-blue-600 text-2xl mb-2"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                                    <div x-show="paymentMethod === 'cash'"
+                                        class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                                        <div class="text-blue-600 text-2xl mb-2"><i
+                                                class="fa-solid fa-hand-holding-dollar"></i></div>
                                         <p class="text-sm font-bold text-blue-800">กรุณาเก็บเงินสดจากลูกค้า</p>
                                         <p class="text-xl font-bold text-blue-900 mt-1" x-text="formatMoney(balance)"></p>
                                     </div>
                                 </div>
                             </template>
-                            <div class="space-y-3">
+
+                            <div class="space-y-3 pt-2">
                                 <div><label class="block text-sm font-bold text-gray-700 mb-1">📸 รูปหน้างาน (บังคับ)
-                                        *</label><input type="file" name="job_image" required accept="image/*"
+                                        *</label>
+                                    <input type="file" name="job_image" required accept="image/*"
                                         capture="environment"
                                         class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                                 </div>
                                 <div x-show="!isPaid && balance > 0 && paymentMethod === 'transfer'">
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">💸 สลิปโอนเงิน (บังคับ) *</label>
-                                    <input type="file" name="payment_proof" :required="!isPaid && balance > 0 && paymentMethod === 'transfer'" accept="image/*"
-                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">💸 สลิปโอนเงิน (บังคับ)
+                                        *</label>
+                                    <input type="file" name="payment_proof"
+                                        :required="!isPaid && balance > 0 && paymentMethod === 'transfer'"
+                                        accept="image/*"
+                                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
                                 </div>
                                 <div><label class="block text-sm font-bold text-gray-700 mb-1">📝 หมายเหตุ</label>
                                     <textarea name="note" rows="2"
-                                        class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3"></textarea>
+                                        class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3"></textarea>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6"><button type="submit"
+                        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                            <button type="submit"
                                 class="inline-flex w-full justify-center rounded-xl bg-blue-600 px-3 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                                :disabled="isSubmitting"><span x-show="!isSubmitting">ยืนยันจบงาน</span><span
-                                    x-show="isSubmitting"><i class="fa-solid fa-spinner fa-spin"></i>
-                                    กำลังบันทึก...</span></button></div>
+                                :disabled="isSubmitting">
+                                <span x-show="!isSubmitting">ยืนยันจบงาน</span>
+                                <span x-show="isSubmitting"><i class="fa-solid fa-spinner fa-spin"></i>
+                                    กำลังบันทึก...</span>
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
+<script>
         function finishJobData() {
             return {
                 jobId: '',
                 jobNumber: '',
-                totalPrice: 0,
+                actualArea: 0.1,
+                totalPrice: 0, 
                 depositAmount: 0,
                 balance: 0,
                 qrPayload: '',
                 paymentMethod: 'transfer',
                 isPaid: false,
                 isSubmitting: false,
+                
                 formatMoney(amount) {
                     return new Intl.NumberFormat('th-TH', {
                         style: 'currency',
                         currency: 'THB'
                     }).format(amount);
                 },
+
                 closeModal() {
                     document.getElementById('finishJobModal').classList.add('hidden');
                     this.isSubmitting = false;
+                },
+
+                // 🟢 ฟังก์ชันตรวจสอบฟอร์มก่อนส่ง (Script ใหม่)
+                submitForm(e) {
+                    // 1. ให้ Browser เช็ค Required พื้นฐานก่อน (เช่น ต้องกรอกไร่, ต้องแนบรูปหน้างาน)
+                    if (!e.target.checkValidity()) {
+                        this.isSubmitting = false;
+                        return; // ปล่อยให้ Browser เด้งเตือนสีแดงตามปกติ
+                    }
+
+                    // 2. เช็คเงื่อนไขการจ่ายเงินหน้างาน
+                    if (!this.isPaid && this.balance > 0) {
+                        const proofInput = e.target.querySelector('input[name="payment_proof"]');
+                        
+                        if (this.paymentMethod === 'transfer') {
+                            // ❌ ถ้าเลือกโอนเงิน แต่ไม่มีสลิป
+                            if (!proofInput || proofInput.files.length === 0) {
+                                e.preventDefault(); // เบรกการส่งฟอร์ม
+                                alert('กรุณาแนบรูป "สลิปโอนเงิน" ให้ครบถ้วนก่อนจบงานครับ');
+                                this.isSubmitting = false; // ปลดล็อคปุ่ม
+                                return;
+                            }
+                        } else if (this.paymentMethod === 'cash') {
+                            // ✅ ถ้าเลือกเงินสด ให้ล้างค่าสลิปทิ้ง (เผื่อพนักงานเผลอกดเลือกรูปทิ้งไว้)
+                            if (proofInput) {
+                                proofInput.value = '';
+                            }
+                        }
+                    }
+
+                    // ถ้าข้อมูลครบถ้วน ให้ขึ้นสถานะกำลังโหลด
+                    this.isSubmitting = true;
                 }
             }
         }
 
-        function openFinishModal(id, number, total, deposit, qr, paymentStatus) {
+        function openFinishModal(id, number, estimatedArea, total, deposit, qr, paymentStatus) {
             const modal = document.getElementById('finishJobModal');
             const xData = Alpine.$data(modal);
+
             xData.jobId = id;
             xData.jobNumber = number;
-            xData.totalPrice = total;
-            xData.depositAmount = deposit;
-            xData.balance = total - deposit;
+            xData.actualArea = parseFloat(estimatedArea) > 0 ? parseFloat(estimatedArea) : 0.1;
+
+            xData.totalPrice = parseFloat(total) || 0;
+            xData.depositAmount = parseFloat(deposit) || 0;
+            xData.balance = Math.max(0, xData.totalPrice - xData.depositAmount);
+
             xData.qrPayload = qr;
             xData.paymentMethod = 'transfer';
             xData.isPaid = ['paid', 'pending_approval'].includes(paymentStatus) ||
                 (paymentStatus === 'deposit_paid' && xData.balance <= 0);
+
             xData.isSubmitting = false;
             modal.classList.remove('hidden');
         }

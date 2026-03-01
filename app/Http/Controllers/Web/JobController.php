@@ -101,9 +101,14 @@ class JobController extends Controller
 
         try {
             $data = $request->only([
-                'customer_id', 'equipment_id', 'assigned_staff_id',
-                'scheduled_start', 'scheduled_end', 'actual_area',
-                'deposit_amount', 'payment_method'
+                'customer_id',
+                'equipment_id',
+                'assigned_staff_id',
+                'scheduled_start',
+                'scheduled_end',
+                'actual_area',
+                'deposit_amount',
+                'payment_method'
             ]);
 
             // ✅ 1. ดึงเรทราคาเครื่องจักรมาคำนวณฝั่ง Server
@@ -159,8 +164,8 @@ class JobController extends Controller
             'actual_area' => 'nullable|numeric|min:0.1', // ✅ รับค่าพื้นที่ทำจริง
             'total_price' => 'nullable|numeric|min:0',
             'deposit_amount' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:transfer,cash', 
-            'payment_proof' => 'nullable|image|max:5120',    
+            'payment_method' => 'nullable|in:transfer,cash',
+            'payment_proof' => 'nullable|image|max:5120',
         ]);
 
         // เตรียมข้อมูลที่จะอัปเดต
@@ -171,7 +176,7 @@ class JobController extends Controller
             'deposit_amount' => $request->deposit_amount ?? $job->deposit_amount,
             'assigned_staff_id' => $request->assigned_staff_id,
             'note' => $request->note,
-            'payment_method' => $request->payment_method, 
+            'payment_method' => $request->payment_method,
         ];
 
         // 🟢 ถ้ามีการแนบสลิปใหม่ (กรณีโอนเงิน)
@@ -184,7 +189,7 @@ class JobController extends Controller
         if ($request->status == 'completed') {
             // ถ้าแอดมินเลือกจ่ายแบบ "เงินสด" หรือ "โอนและมีสลิปแล้ว" -> ถือว่าจ่ายครบแล้ว
             if ($request->payment_method == 'cash' || $job->payment_proof || $request->hasFile('payment_proof')) {
-                $updateData['payment_status'] = 'paid'; 
+                $updateData['payment_status'] = 'paid';
             }
         }
 
@@ -215,8 +220,14 @@ class JobController extends Controller
     public function approve(Request $request, $id)
     {
         $job = Booking::findOrFail($id);
-        $job->update(['status' => 'completed']);
-        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว!');
+
+        // อัปเดตให้เป็น completed และถือว่าจ่ายเงินครบถ้วน (paid)
+        $job->update([
+            'status' => 'completed',
+            'payment_status' => 'paid'
+        ]);
+
+        return redirect()->route('admin.jobs.index')->with('success', 'อนุมัติงานและปิด Job เรียบร้อยแล้ว! สามารถพิมพ์ใบเสร็จได้ทันที');
     }
 
     public function cancel($id)
@@ -274,7 +285,8 @@ class JobController extends Controller
 
     private function baht_text($number)
     {
-        if (!is_numeric($number) || $number < 0) return "-";
+        if (!is_numeric($number) || $number < 0)
+            return "-";
 
         $number = number_format($number, 2, '.', '');
         $number_parts = explode('.', $number);
@@ -320,14 +332,19 @@ class JobController extends Controller
             $second = (int) $str_satang[1];
 
             if ($first > 0) {
-                if ($first == 1) $satang_text .= "สิบ";
-                elseif ($first == 2) $satang_text .= "ยี่สิบ";
-                else $satang_text .= $text_numbers[$first] . "สิบ";
+                if ($first == 1)
+                    $satang_text .= "สิบ";
+                elseif ($first == 2)
+                    $satang_text .= "ยี่สิบ";
+                else
+                    $satang_text .= $text_numbers[$first] . "สิบ";
             }
 
             if ($second > 0) {
-                if ($first > 0 && $second == 1) $satang_text .= "เอ็ด";
-                else $satang_text .= $text_numbers[$second];
+                if ($first > 0 && $second == 1)
+                    $satang_text .= "เอ็ด";
+                else
+                    $satang_text .= $text_numbers[$second];
             }
 
             $baht_text .= $satang_text . "สตางค์";

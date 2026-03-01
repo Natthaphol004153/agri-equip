@@ -130,10 +130,12 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // --- Maintenance Management ---
+        // --- Maintenance Management ---
         Route::prefix('maintenance')->name('maintenance.')->controller(MaintenanceController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/create', 'create')->name('create');
             Route::post('/store', 'store')->name('store');
+            // ❌ ลบบรรทัด showReport ออกจากตรงนี้ครับ
             Route::get('/log/{id}/accept', 'showAcceptForm')->name('accept_form');
             Route::post('/log/{id}/accept', 'accept')->name('accept_submit');
             Route::post('/log/{id}/finish', 'finish')->name('finish');

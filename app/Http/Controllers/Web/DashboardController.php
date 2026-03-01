@@ -53,6 +53,8 @@ class DashboardController extends Controller
             ->get()
             ->map(function ($job) {
                 return (object) [
+                    'id' => $job->id,               // 🟢 เพิ่ม ID เพื่อให้ปุ่มลิงก์ทำงานได้
+                    'status' => $job->status,       // 🟢 เพิ่ม Status เพื่อให้ป้ายเปลี่ยนสีตามจริง
                     'job_number' => $job->job_number ?? 'JOB-'.$job->id,
                     'time_range' => Carbon::parse($job->scheduled_start)->format('H:i') . ' - ' . Carbon::parse($job->scheduled_end)->format('H:i'),
                     'customer_name' => $job->customer->name ?? 'ไม่ระบุลูกค้า',
