@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Models\Equipment;
+use App\Models\FuelLog;
 use App\Models\FuelTank;
 use App\Models\FuelPurchase;
 
@@ -15,6 +19,9 @@ class FuelStockController extends Controller
     public function index()
     {
         $tanks = FuelTank::all();
+        $equipments = Equipment::whereIn('current_status', ['available', 'in_use'])
+            ->orderBy('name')
+            ->get();
 
         // ❌ จุดที่แก้: ลบ 'supplier' ออกจาก with() เพราะเป็นแค่ field ธรรมดา
         // ✅ ดึงประวัติการซื้อล่าสุด 10 รายการ (โหลด tank มาแสดงชื่อถัง)
@@ -23,7 +30,13 @@ class FuelStockController extends Controller
             ->limit(10)
             ->get();
 
-        return view('admin.fuel.index', compact('tanks', 'purchases'));
+        $withdrawals = FuelLog::with(['user', 'equipment', 'tank'])
+            ->where('fuel_source', 'internal')
+            ->orderByDesc('refill_date')
+            ->limit(15)
+            ->get();
+
+        return view('admin.fuel.index', compact('tanks', 'purchases', 'equipments', 'withdrawals'));
     }
 
     // ----------------------------------------------------------------
@@ -83,6 +96,47 @@ class FuelStockController extends Controller
         ]);
 
         return redirect()->route('admin.fuel.index')->with('success', 'เพิ่มสต็อกน้ำมันเรียบร้อย! อัปเดตราคาต้นทุนเฉลี่ยแล้ว');
+    }
+
+    public function storeWithdraw(Request $request)
+    {
+        $request->validate([
+            'equipment_id' => 'required|exists:equipment,id',
+            'fuel_tank_id' => 'required|exists:fuel_tanks,id',
+            'liters' => 'required|numeric|min:0.1',
+            'mileage' => 'nullable|numeric|min:0',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            DB::transaction(function () use ($request) {
+                $tank = FuelTank::lockForUpdate()->findOrFail($request->fuel_tank_id);
+
+                if ((float) $tank->current_balance < (float) $request->liters) {
+                    throw new \Exception('น้ำมันในถังไม่พอจ่าย (เหลือ ' . number_format($tank->current_balance, 2) . ' ลิตร)');
+                }
+
+                $cost = (float) $request->liters * (float) $tank->average_price;
+
+                $tank->decrement('current_balance', (float) $request->liters);
+
+                FuelLog::create([
+                    'equipment_id' => $request->equipment_id,
+                    'user_id' => Auth::id(),
+                    'fuel_source' => 'internal',
+                    'fuel_tank_id' => $tank->id,
+                    'amount' => $cost,
+                    'liters' => $request->liters,
+                    'mileage' => $request->mileage,
+                    'note' => $request->note,
+                    'refill_date' => now(),
+                ]);
+            });
+
+            return redirect()->route('admin.fuel.index')->with('success', 'เบิกน้ำมันให้เครื่องจักรเรียบร้อยแล้ว');
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'ไม่สามารถเบิกน้ำมันได้: ' . $e->getMessage());
+        }
     }
 
     // ----------------------------------------------------------------

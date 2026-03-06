@@ -256,6 +256,52 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
+            function normalizeDateInputValue(value) {
+                const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+                if (!match) {
+                    return {
+                        normalizedValue: value,
+                        dateObj: null,
+                        dateOnly: ''
+                    };
+                }
+
+                let year = parseInt(match[1], 10);
+                const month = parseInt(match[2], 10);
+                const day = parseInt(match[3], 10);
+                const hour = parseInt(match[4] || '0', 10);
+                const minute = parseInt(match[5] || '0', 10);
+                const second = parseInt(match[6] || '0', 10);
+
+                if (year >= 2400) {
+                    year -= 543;
+                }
+
+                const pad2 = (num) => String(num).padStart(2, '0');
+                const dateOnly = `${year}-${pad2(month)}-${pad2(day)}`;
+                const normalizedValue = match[4]
+                    ? `${dateOnly}T${pad2(hour)}:${pad2(minute)}${match[6] ? `:${pad2(second)}` : ''}`
+                    : dateOnly;
+
+                return {
+                    normalizedValue,
+                    dateObj: new Date(year, month - 1, day, hour, minute, second),
+                    dateOnly
+                };
+            }
+
+            function normalizeDateInputsForSubmit() {
+                ['scheduled_start', 'scheduled_end'].forEach((id) => {
+                    const input = document.getElementById(id);
+                    if (!input || !input.value) return;
+
+                    const parsed = normalizeDateInputValue(input.value);
+                    if (parsed.normalizedValue) {
+                        input.value = parsed.normalizedValue;
+                    }
+                });
+            }
+
             @if (session('success'))
                 Swal.fire({
                     icon: 'success',
@@ -289,6 +335,11 @@
             const estimatedAreaInput = document.getElementById('estimated_area');
             const actualAreaInput = document.getElementById('actual_area');
             const totalPriceInput = document.getElementById('total_price');
+            const bookingForm = document.querySelector('form[action="{{ route('admin.jobs.store') }}"]');
+
+            if (bookingForm) {
+                bookingForm.addEventListener('submit', normalizeDateInputsForSubmit);
+            }
 
             // ฟังก์ชันคำนวณราคา (ไร่จริง x เรทเครื่องจักร)
             function calculateTotalPrice() {
@@ -329,14 +380,19 @@
 
                 if (!dateVal) return;
 
-                const dateObj = new Date(dateVal);
-                const dateStr = dateVal.split('T')[0];
+                const parsedDate = normalizeDateInputValue(dateVal);
+                const dateObj = parsedDate.dateObj;
+                const dateStr = parsedDate.dateOnly;
 
-                displayDate.innerText = dateObj.toLocaleDateString('th-TH', {
+                if (parsedDate.normalizedValue && parsedDate.normalizedValue !== dateVal) {
+                    dateInput.value = parsedDate.normalizedValue;
+                }
+
+                displayDate.innerText = dateObj ? dateObj.toLocaleDateString('th-TH', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric'
-                });
+                }) : '-- เลือกวันเริ่มงาน --';
 
                 if (!equipmentVal) {
                     listContainer.innerHTML =

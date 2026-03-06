@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // รองรับ Reverse Proxy / Cloudflare
-        $middleware->trustProxies(at: '*');
+        // $middleware->trustProxies(at: '*');
 
         // ✅ 2. ตั้งค่า Redirect (กันหน้า Login วนลูป)
         $middleware->redirectUsersTo(function (Request $request) {
@@ -36,8 +36,6 @@ return Application::configure(basePath: dirname(__DIR__))
             }
             return route('login');
         });
-
-        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -151,6 +151,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/purchase', 'createPurchase')->name('purchase');
             Route::post('/purchase', 'storePurchase')->name('store_purchase');
+            Route::post('/withdraw', 'storeWithdraw')->name('withdraw');
             Route::post('/tank', 'storeTank')->name('tank.store');
             Route::delete('/tank/{id}', 'destroyTank')->name('tank.destroy');
         });

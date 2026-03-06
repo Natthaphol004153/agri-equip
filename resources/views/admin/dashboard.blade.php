@@ -51,7 +51,7 @@
         {{-- 🚜 3. Operational Stats (ตัวเลขภาพรวมปัจจุบัน) --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             {{-- Pending Jobs (สำคัญที่สุด ต้องจัดการก่อน) --}}
-            <a href="{{ route('admin.jobs.index', ['status' => 'pending']) }}" class="bg-orange-50 p-5 rounded-2xl shadow-sm border border-orange-100 flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-md transition-all hover:-translate-y-1">
+            <a href="{{ route('admin.jobs.index', ['status' => 'pending_approval']) }}" class="bg-orange-50 p-5 rounded-2xl shadow-sm border border-orange-100 flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-md transition-all hover:-translate-y-1">
                 <div class="absolute right-0 top-0 p-3 opacity-10 group-hover:scale-125 transition-transform duration-500">
                     <i class="fa-solid fa-clock text-6xl text-orange-600"></i>
                 </div>
@@ -112,6 +112,7 @@
                             // แปลงสถานะเป็นรูปแบบและสีที่เข้าใจง่าย
                             $statusConfig = match ($job->status ?? 'pending') {
                                 'pending' => ['label' => 'รออนุมัติ', 'color' => 'text-gray-600 bg-gray-100 border-gray-200', 'icon' => 'fa-clock'],
+                                'pending_approval' => ['label' => 'รออนุมัติ', 'color' => 'text-gray-600 bg-gray-100 border-gray-200', 'icon' => 'fa-clock'],
                                 'scheduled' => ['label' => 'รอเริ่มงาน', 'color' => 'text-yellow-700 bg-yellow-50 border-yellow-200', 'icon' => 'fa-calendar-check'],
                                 'in_progress' => ['label' => 'กำลังทำงาน', 'color' => 'text-blue-700 bg-blue-50 border-blue-200 animate-pulse', 'icon' => 'fa-spinner fa-spin'],
                                 'completed_pending_approval' => ['label' => 'รอตรวจเงิน', 'color' => 'text-orange-700 bg-orange-50 border-orange-200', 'icon' => 'fa-file-invoice-dollar'],

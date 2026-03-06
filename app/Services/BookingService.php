@@ -16,10 +16,13 @@ class BookingService
     public function createBooking(array $data)
     {
         return DB::transaction(function () use ($data) {
-            $start = Carbon::parse($data['scheduled_start']);
-            $end = Carbon::parse($data['scheduled_end']);
+            $start = $this->normalizeBookingDate($data['scheduled_start']);
+            $end = $this->normalizeBookingDate($data['scheduled_end']);
             $equipmentId = $data['equipment_id'];
             $staffId = $data['assigned_staff_id'] ?? null;
+
+            $data['scheduled_start'] = $start->format('Y-m-d H:i:s');
+            $data['scheduled_end'] = $end->format('Y-m-d H:i:s');
 
             // 1. ดึงข้อมูล Equipment
             $equipment = Equipment::find($equipmentId);
@@ -153,5 +156,16 @@ class BookingService
 
         $number = intval(substr($latest->job_number, -3)) + 1;
         return $prefix . str_pad($number, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function normalizeBookingDate($value): Carbon
+    {
+        $date = $value instanceof Carbon ? $value->copy() : Carbon::parse($value);
+
+        if ($date->year >= 2400) {
+            $date->subYears(543);
+        }
+
+        return $date;
     }
 }

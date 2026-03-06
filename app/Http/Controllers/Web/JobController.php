@@ -86,6 +86,11 @@ class JobController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'scheduled_start' => $this->normalizeBuddhistDateString($request->input('scheduled_start')),
+            'scheduled_end' => $this->normalizeBuddhistDateString($request->input('scheduled_end')),
+        ]);
+
         // Validation สำหรับการสร้างงานโดยแอดมิน
         $request->validate([
             'customer_id' => 'required|exists:customers,id',
@@ -293,7 +298,7 @@ class JobController extends Controller
 
     public function getBookingsByDate(Request $request)
     {
-        $date = $request->date;
+        $date = $this->normalizeBuddhistDateString($request->date);
         $equipmentId = $request->equipment_id;
 
         $query = Booking::whereDate('scheduled_start', $date)
@@ -313,6 +318,35 @@ class JobController extends Controller
         });
 
         return response()->json($bookings);
+    }
+
+    private function normalizeBuddhistDateString($value)
+    {
+        if (blank($value)) {
+            return $value;
+        }
+
+        $raw = trim((string) $value);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/', $raw, $match)) {
+            return $value;
+        }
+
+        $year = (int) $match[1];
+        if ($year >= 2400) {
+            $year -= 543;
+        }
+
+        $month = $match[2];
+        $day = $match[3];
+        $hour = $match[4] ?? null;
+        $minute = $match[5] ?? null;
+        $second = $match[6] ?? null;
+
+        if ($hour === null || $minute === null) {
+            return sprintf('%04d-%s-%s', $year, $month, $day);
+        }
+
+        return sprintf('%04d-%s-%s %s:%s:%s', $year, $month, $day, $hour, $minute, $second ?? '00');
     }
 
     public function receipt($id)

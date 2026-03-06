@@ -63,6 +63,10 @@ class DashboardController extends Controller
     // 2. บันทึกข้อมูลการจอง
     public function store(Request $request)
     {
+        $request->merge([
+            'start_date' => $this->normalizeBuddhistDateString($request->input('start_date')),
+        ]);
+
         $request->validate([
             'equipment_id' => 'required|exists:equipment,id',
             'start_date' => 'required|date|after_or_equal:today',
@@ -157,6 +161,10 @@ class DashboardController extends Controller
     // ✅ เพิ่มฟังก์ชันนี้สำหรับเช็คคิวงาน (AJAX)
     public function apiCheckSchedule(Request $request)
     {
+        $request->merge([
+            'date' => $this->normalizeBuddhistDateString($request->input('date')),
+        ]);
+
         $request->validate([
             'equipment_id' => 'required',
             'date' => 'required|date',
@@ -180,5 +188,34 @@ class DashboardController extends Controller
         });
 
         return response()->json($events);
+    }
+
+    private function normalizeBuddhistDateString($value)
+    {
+        if (blank($value)) {
+            return $value;
+        }
+
+        $raw = trim((string) $value);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?$/', $raw, $match)) {
+            return $value;
+        }
+
+        $year = (int) $match[1];
+        if ($year >= 2400) {
+            $year -= 543;
+        }
+
+        $month = $match[2];
+        $day = $match[3];
+        $hour = $match[4] ?? null;
+        $minute = $match[5] ?? null;
+        $second = $match[6] ?? null;
+
+        if ($hour === null || $minute === null) {
+            return sprintf('%04d-%s-%s', $year, $month, $day);
+        }
+
+        return sprintf('%04d-%s-%s %s:%s:%s', $year, $month, $day, $hour, $minute, $second ?? '00');
     }
 }

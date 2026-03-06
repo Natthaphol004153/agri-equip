@@ -207,8 +207,49 @@
 
 @section('scripts')
 <script>
+    function normalizeDateInputValue(value) {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            return {
+                normalizedValue: value,
+                dateObj: null,
+                dateOnly: ''
+            };
+        }
+
+        let year = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const day = parseInt(match[3], 10);
+
+        if (year >= 2400) {
+            year -= 543;
+        }
+
+        const pad2 = (num) => String(num).padStart(2, '0');
+        const dateOnly = `${year}-${pad2(month)}-${pad2(day)}`;
+
+        return {
+            normalizedValue: dateOnly,
+            dateObj: new Date(year, month - 1, day),
+            dateOnly
+        };
+    }
+
     // เรียก fetchSchedule ทันทีถ้ามีค่า old input
     document.addEventListener('DOMContentLoaded', function() {
+        const bookingForm = document.querySelector('form[action="{{ route('customer.booking.store') }}"]');
+        if (bookingForm) {
+            bookingForm.addEventListener('submit', function() {
+                const startDateInput = document.getElementById('start_date');
+                if (!startDateInput || !startDateInput.value) return;
+
+                const parsed = normalizeDateInputValue(startDateInput.value);
+                if (parsed.normalizedValue) {
+                    startDateInput.value = parsed.normalizedValue;
+                }
+            });
+        }
+
         if(document.querySelector('input[name="equipment_id"]:checked') && document.getElementById('start_date').value) {
             fetchSchedule();
         }
@@ -227,8 +268,14 @@
             return;
         }
 
-        const dateObj = new Date(dateInput.value);
-        dateDisplay.innerText = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+        const parsedDate = normalizeDateInputValue(dateInput.value);
+        if (parsedDate.normalizedValue && parsedDate.normalizedValue !== dateInput.value) {
+            dateInput.value = parsedDate.normalizedValue;
+        }
+
+        dateDisplay.innerText = parsedDate.dateObj
+            ? parsedDate.dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '--';
         
         const machineName = equipmentRadio.closest('label').querySelector('h3').innerText;
         machineDisplay.innerText = machineName;
@@ -236,7 +283,7 @@
         loadingSpinner.classList.remove('hidden');
         scheduleList.innerHTML = '';
 
-        fetch(`{{ route('customer.booking.check_schedule') }}?equipment_id=${equipmentRadio.value}&date=${dateInput.value}`)
+        fetch(`{{ route('customer.booking.check_schedule') }}?equipment_id=${equipmentRadio.value}&date=${parsedDate.dateOnly || dateInput.value}`)
             .then(response => response.json())
             .then(data => {
                 loadingSpinner.classList.add('hidden');

@@ -63,19 +63,19 @@ class DashboardController extends Controller
             });
 
         // 3.2 งานรออนุมัติปกติ (ที่มีกำหนดในอนาคต หรือ วันนี้)
-        $pendingJobs = Booking::where('status', 'pending')
+        $pendingJobs = Booking::whereIn('status', ['pending_approval', 'pending'])
             ->whereDate('scheduled_start', '>=', $today)
             ->get();
             
         $pendingJobsCount = $pendingJobs->count(); // สำหรับแสดงในกล่องสถิติ
 
         // 3.3 งานรออนุมัติ แต่เลยวันนัดหมายมาแล้ว (Expired Pending) ⚠️
-        $expiredPendingJobs = Booking::where('status', 'pending')
+        $expiredPendingJobs = Booking::whereIn('status', ['pending_approval', 'pending'])
             ->whereDate('scheduled_start', '<', $today)
             ->get();
 
         // 3.4 งานอนุมัติแล้ว/มอบหมายแล้ว แต่เลยวันนัดหมายพนักงานยังไม่ทำ (Overdue) 🚨
-        $overdueJobs = Booking::whereIn('status', ['approved', 'assigned'])
+        $overdueJobs = Booking::whereIn('status', ['scheduled', 'approved', 'assigned'])
             ->whereDate('scheduled_start', '<', $today)
             ->get();
 
