@@ -41,14 +41,20 @@
                     class="fa-solid fa-user"></i> ข้อมูลลูกค้า</h4>
             <div class="flex items-start gap-4 mb-4">
                 <div
-                    class="w-12 h-12 rounded-full bg-agri-bg flex items-center justify-center text-agri-primary text-xl flex-shrink-0">
-                    <i class="fa-solid fa-user-tag"></i>
+                    class="w-14 h-14 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center text-agri-primary text-xl flex-shrink-0">
+                    @if (!empty($job->customer->profile_image))
+                        <img src="{{ asset('storage/' . $job->customer->profile_image) }}" alt="{{ $job->customer->name }}"
+                            class="w-full h-full object-cover">
+                    @else
+                        <i class="fa-solid fa-user-tag"></i>
+                    @endif
                 </div>
                 <div>
                     <h5 class="font-bold text-gray-800 text-lg">{{ $job->customer->name }}</h5>
+                    <p class="text-xs text-gray-400 mt-1">สถานที่ปฏิบัติงาน</p>
                     <p class="text-sm text-gray-500 mt-1 leading-relaxed"><i
                             class="fa-solid fa-location-dot text-red-500 mr-1"></i>
-                        {{ $job->customer->address ?? 'ไม่ระบุที่อยู่' }}</p>
+                        {{ $job->customer->work_location_address ?? $job->customer->address ?? 'ไม่ระบุที่อยู่' }}</p>
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -56,14 +62,31 @@
                     class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-200 bg-green-50 text-green-700 font-bold text-sm hover:bg-green-100 transition active:scale-95"><i
                         class="fa-solid fa-phone"></i> โทรหาลูกค้า</a>
                 @php
-                    $mapLink = isset($job->customer->latitude)
-                        ? "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}"
-                        : 'https://maps.google.com/maps?q=' . urlencode($job->customer->address ?? '');
+                    $manualWorkMapUrl = $job->customer->work_map_url ?? null;
+                    $workLat = $job->customer->work_latitude ?? null;
+                    $workLng = $job->customer->work_longitude ?? null;
+                    $workAddress = $job->customer->work_location_address ?? null;
+                    $mapSource = !empty($manualWorkMapUrl)
+                        ? 'ใช้ลิงก์หน้างานที่แอดมินกำหนด'
+                        : ((!empty($workLat) && !empty($workLng))
+                            ? 'ใช้พิกัดหน้างาน'
+                            : (isset($job->customer->latitude)
+                                ? 'ใช้พิกัดที่อยู่ลูกค้า'
+                                : 'ใช้ที่อยู่ข้อความ'));
+
+                    $mapLink = !empty($manualWorkMapUrl)
+                        ? $manualWorkMapUrl
+                        : ((!empty($workLat) && !empty($workLng))
+                            ? "https://maps.google.com/maps?q={$workLat},{$workLng}"
+                            : (isset($job->customer->latitude)
+                                ? "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}"
+                                : 'https://maps.google.com/maps?q=' . urlencode($workAddress ?: ($job->customer->address ?? ''))));
                 @endphp
                 <a href="{{ $mapLink }}" target="_blank"
                     class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 font-bold text-sm hover:bg-blue-100 transition active:scale-95"><i
-                        class="fa-solid fa-map-location-dot"></i> นำทาง</a>
+                        class="fa-solid fa-map-location-dot"></i> นำทางหน้างาน</a>
             </div>
+            <p class="text-[11px] text-blue-700/80 mt-2"><i class="fa-solid fa-circle-info"></i> {{ $mapSource }}</p>
         </div>
 
         {{-- 3. Machine Info --}}
@@ -71,8 +94,15 @@
             <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><i
                     class="fa-solid fa-tractor"></i> ข้อมูลหน้างาน</h4>
             <div class="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100 mb-3">
-                <div class="w-14 h-14 rounded-lg bg-white border border-gray-200 flex items-center justify-center"><i
-                        class="fa-solid fa-wrench text-2xl text-gray-400"></i></div>
+                <div
+                    class="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden flex items-center justify-center text-gray-400">
+                    @if (!empty($job->equipment->image_path))
+                        <img src="{{ asset($job->equipment->image_path) }}" alt="{{ $job->equipment->name }}"
+                            class="w-full h-full object-cover">
+                    @else
+                        <i class="fa-solid fa-tractor text-2xl"></i>
+                    @endif
+                </div>
                 <div>
                     <h6 class="font-bold text-gray-800">{{ $job->equipment->name }}</h6>
                     <div class="flex gap-2 mt-1">

@@ -40,7 +40,7 @@
 
 ## 5) Security Checks
 
-- บังคับ HTTPS ที่ reverse proxy/web server
+- ใช้ HTTPS ที่ reverse proxy/web server และตั้ง `FORCE_HTTPS=true` เมื่อปลายทางเป็น HTTPS จริง
 - ตรวจ cookie/session เป็น secure mode
 - ตรวจ API sensitive routes ว่าใช้ token + role middleware ใน production
 - ทดสอบ login และ role access จริง 3 บทบาท (admin/staff/customer)

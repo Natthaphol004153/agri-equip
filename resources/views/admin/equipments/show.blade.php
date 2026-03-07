@@ -54,8 +54,8 @@
                         <span class="font-medium text-gray-800">{{ $equipment->registration_number ?? '-' }}</span>
                     </div>
                     <div class="flex justify-between border-b border-gray-50 pb-2">
-                        <span class="text-gray-500">ค่าเช่า/ชม.</span>
-                        <span class="font-medium text-green-600">{{ number_format($equipment->hourly_rate) }} บาท</span>
+                        <span class="text-gray-500">ค่าเช่า/ไร่</span>
+                        <span class="font-medium text-green-600">{{ number_format($equipment->price_per_rai ?? 0, 2) }} บาท</span>
                     </div>
                 </div>
             </div>

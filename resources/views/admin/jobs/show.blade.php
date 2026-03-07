@@ -6,6 +6,85 @@
 @section('content')
 <div class="max-w-6xl mx-auto">
 
+    @php
+        $showDateDiff = false;
+        $isOverdue = false;
+        $diffDays = 0;
+        $dayMessage = '';
+        $dayColor = '';
+        $dayIcon = '';
+        $showRuntimeSummary = false;
+        $runtimeMessage = '';
+        $runtimeColor = '';
+        $runtimeIcon = '';
+        if (in_array($job->status, ['pending', 'scheduled']) && $job->scheduled_start) {
+            $showDateDiff = true;
+            $nowDay = \Carbon\Carbon::now()->startOfDay();
+            $schedDay = \Carbon\Carbon::parse($job->scheduled_start)->startOfDay();
+            $diffDays = $nowDay->diffInDays($schedDay, false);
+            
+            if ($diffDays < 0) {
+                $isOverdue = true;
+                $dayMessage = 'เลยกำหนดมาแล้ว ' . abs((int)$diffDays) . ' วัน';
+                $dayColor = 'red';
+                $dayIcon = 'fa-triangle-exclamation';
+            } elseif ($diffDays > 0) {
+                $dayMessage = 'เหลืออีก ' . (int)$diffDays . ' วัน';
+                $dayColor = 'blue';
+                $dayIcon = 'fa-hourglass-half';
+            } else {
+                $dayMessage = 'ถึงกำหนดทำงานวันนี้';
+                $dayColor = 'orange';
+                $dayIcon = 'fa-calendar-day';
+            }
+        }
+
+        if ($job->status === 'in_progress' && $job->actual_start) {
+            $showRuntimeSummary = true;
+            $elapsedMinutes = max(0, \Carbon\Carbon::parse($job->actual_start)->diffInMinutes(\Carbon\Carbon::now()));
+            $elapsedHours = intdiv($elapsedMinutes, 60);
+            $remainingMinutes = $elapsedMinutes % 60;
+
+            if ($elapsedHours > 0) {
+                $runtimeMessage = 'กำลังดำเนินงานมาแล้ว ' . $elapsedHours . ' ชม. ' . $remainingMinutes . ' นาที';
+            } else {
+                $runtimeMessage = 'กำลังดำเนินงานมาแล้ว ' . $remainingMinutes . ' นาที';
+            }
+
+            $runtimeColor = 'purple';
+            $runtimeIcon = 'fa-stopwatch';
+        }
+
+        if (in_array($job->status, ['completed', 'completed_pending_approval']) && $job->actual_start && $job->actual_end) {
+            $showRuntimeSummary = true;
+            $actualMinutes = max(0, \Carbon\Carbon::parse($job->actual_start)->diffInMinutes(\Carbon\Carbon::parse($job->actual_end)));
+            $actualHours = intdiv($actualMinutes, 60);
+            $actualRemainMinutes = $actualMinutes % 60;
+            $durationText = $actualHours > 0
+                ? ($actualHours . ' ชม. ' . $actualRemainMinutes . ' นาที')
+                : ($actualRemainMinutes . ' นาที');
+
+            $runtimeMessage = 'จบงานใช้เวลา ' . $durationText;
+            $runtimeColor = 'green';
+            $runtimeIcon = 'fa-flag-checkered';
+
+            if ($job->scheduled_start && $job->scheduled_end) {
+                $scheduledMinutes = max(0, \Carbon\Carbon::parse($job->scheduled_start)->diffInMinutes(\Carbon\Carbon::parse($job->scheduled_end)));
+                $varianceMinutes = $actualMinutes - $scheduledMinutes;
+
+                if ($varianceMinutes > 0) {
+                    $runtimeMessage .= ' (ช้ากว่ากำหนด ' . $varianceMinutes . ' นาที)';
+                    $runtimeColor = 'red';
+                    $runtimeIcon = 'fa-triangle-exclamation';
+                } elseif ($varianceMinutes < 0) {
+                    $runtimeMessage .= ' (เร็วกว่ากำหนด ' . abs($varianceMinutes) . ' นาที)';
+                } else {
+                    $runtimeMessage .= ' (ตรงตามเวลาที่นัด)';
+                }
+            }
+        }
+    @endphp
+
     {{-- Top Action Bar --}}
     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <a href="{{ route('admin.jobs.index') }}" class="text-gray-500 hover:text-gray-700 font-medium flex items-center gap-2 transition">
@@ -13,6 +92,13 @@
         </a>
 
         <div class="flex gap-2">
+            @if ($isOverdue)
+                <button type="button" onclick="if(confirm('⚠️ งานนี้ล่าช้าเลยกำหนดมาแล้ว ยืนยันที่จะยกเลิกงานนี้ใช่หรือไม่?')) document.getElementById('cancelForm').submit();"
+                    class="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-xl hover:bg-red-100 hover:text-red-700 transition shadow-sm font-medium flex items-center gap-2">
+                    <i class="fa-solid fa-ban"></i> ยกเลิกงาน
+                </button>
+            @endif
+
             @if (in_array($job->status, ['scheduled', 'in_progress', 'completed_pending_approval']))
                 <a href="{{ route('admin.jobs.edit', $job->id) }}" class="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-50 hover:text-orange-500 transition shadow-sm font-medium">
                     <i class="fa-solid fa-pen"></i> แก้ไขงาน
@@ -76,6 +162,20 @@
                         <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-{{ $c }}-100 text-{{ $c }}-700 border border-{{ $c }}-200">
                             <i class="fa-solid {{ $statusConfig['icon'] }}"></i> {{ $statusConfig['label'] }}
                         </span>
+
+                        @if($showDateDiff)
+                            <div class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-{{ $dayColor }}-50 text-{{ $dayColor }}-600 border-{{ $dayColor }}-200 shadow-sm relative z-20">
+                                <i class="fa-solid {{ $dayIcon }}"></i>
+                                <span class="text-sm font-bold">{{ $dayMessage }}</span>
+                            </div>
+                        @endif
+
+                        @if($showRuntimeSummary)
+                            <div class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-{{ $runtimeColor }}-50 text-{{ $runtimeColor }}-600 border-{{ $runtimeColor }}-200 shadow-sm relative z-20">
+                                <i class="fa-solid {{ $runtimeIcon }}"></i>
+                                <span class="text-sm font-bold">{{ $runtimeMessage }}</span>
+                            </div>
+                        @endif
                     </div>
                 </div>
                 {{-- Decoration --}}
@@ -101,13 +201,26 @@
                             <a href="tel:{{ $job->customer->phone }}" class="font-medium text-blue-600 hover:underline">{{ $job->customer->phone }}</a>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400">ที่อยู่</p>
+                            <p class="text-xs text-gray-400">ที่อยู่ลูกค้า</p>
                             <p class="font-medium text-gray-800 text-sm leading-relaxed">{{ $job->customer->address ?? '-' }}</p>
                         </div>
+                        <div>
+                            <p class="text-xs text-gray-400">สถานที่ปฏิบัติงาน</p>
+                            <p class="font-medium text-gray-800 text-sm leading-relaxed">{{ $job->customer->work_location_address ?? $job->customer->address ?? '-' }}</p>
+                        </div>
                         @php
-                            $adminMapLink = isset($job->customer->latitude) ?
-                                "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}" :
-                                "https://maps.google.com/maps?q=" . urlencode($job->customer->address ?? '');
+                            $manualWorkMapUrl = $job->customer->work_map_url ?? null;
+                            $workLat = $job->customer->work_latitude ?? null;
+                            $workLng = $job->customer->work_longitude ?? null;
+                            $workAddress = $job->customer->work_location_address ?? null;
+
+                            $adminMapLink = !empty($manualWorkMapUrl)
+                                ? $manualWorkMapUrl
+                                : ((!empty($workLat) && !empty($workLng))
+                                    ? "https://maps.google.com/maps?q={$workLat},{$workLng}"
+                                    : (isset($job->customer->latitude)
+                                        ? "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}"
+                                        : "https://maps.google.com/maps?q=" . urlencode($workAddress ?: ($job->customer->address ?? ''))));
                         @endphp
                         <div>
                             <a href="{{ $adminMapLink }}" target="_blank"
@@ -199,11 +312,11 @@
                 <div class="space-y-3 text-sm">
                     {{-- ✅ ข้อมูลพื้นที่ --}}
                     <div class="flex justify-between text-gray-500">
-                        <span>พื้นที่ประเมิน (Estimated)</span>
+                        <span>พื้นที่ประเมิน</span>
                         <span>{{ number_format($job->estimated_area ?? 0, 1) }} ไร่</span>
                     </div>
                     <div class="flex justify-between text-green-800 font-bold bg-green-50 px-3 py-2 rounded-lg border border-green-100">
-                        <span>พื้นที่ทำจริง (Actual Area)</span>
+                        <span>พื้นที่ทำจริง</span>
                         <span class="text-green-700">{{ number_format($job->actual_area ?? $job->estimated_area, 1) }} ไร่</span>
                     </div>
                     <div class="flex justify-between text-gray-500">
@@ -320,6 +433,11 @@
 
         </div>
     </div>
+    
+    {{-- Form ยกเลิกงาน --}}
+    @if ($isOverdue)
+        <form id="cancelForm" action="{{ route('admin.jobs.cancel', $job->id) }}" method="POST" class="hidden">@csrf</form>
+    @endif
 </div>
 
 <script>

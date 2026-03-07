@@ -45,13 +45,17 @@ class CustomerController extends Controller
             'customer_type' => 'required|in:individual,farm,company',
             'tax_id' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'address' => 'nullable|string',
+            'address' => 'required|string',
+            'work_location_address' => 'nullable|string',
+            'work_map_url' => 'nullable|url|max:2048',
             'province' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:10',
             'farm_area' => 'nullable|numeric|min:0', // ✅ เพิ่ม
             'latitude' => 'nullable|string|max:50',  // ✅ เพิ่ม
             'longitude' => 'nullable|string|max:50', // ✅ เพิ่ม
+            'work_latitude' => 'nullable|string|max:50',
+            'work_longitude' => 'nullable|string|max:50',
             'profile_image' => 'nullable|image|max:5120',
         ]);
 
@@ -100,13 +104,17 @@ class CustomerController extends Controller
             'customer_type' => 'required|in:individual,farm,company',
             'tax_id' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'address' => 'nullable|string',
+            'address' => 'required|string',
+            'work_location_address' => 'nullable|string',
+            'work_map_url' => 'nullable|url|max:2048',
             'province' => 'nullable|string|max:100',
             'district' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:10',
             'farm_area' => 'nullable|numeric|min:0', // ✅ เพิ่ม
             'latitude' => 'nullable|string|max:50',  // ✅ เพิ่ม
             'longitude' => 'nullable|string|max:50', // ✅ เพิ่ม
+            'work_latitude' => 'nullable|string|max:50',
+            'work_longitude' => 'nullable|string|max:50',
             'profile_image' => 'nullable|image|max:5120',
         ]);
 

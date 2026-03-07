@@ -50,7 +50,7 @@
                     <div class="relative">
                         <i class="fa-solid fa-tractor absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                         <select name="equipment_id" required class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 appearance-none">
-                            <option value="" disabled selected>-- เลือกรถ --</option>
+                            <option value="" disabled selected>-- เลือกเครื่องจักร --</option>
                             @foreach($equipments as $eq)
                                 <option value="{{ $eq->id }}" {{ old('equipment_id') == $eq->id ? 'selected' : '' }}>
                                     {{ $eq->name }} ({{ $eq->equipment_code }})

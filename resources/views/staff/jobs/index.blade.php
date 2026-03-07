@@ -97,20 +97,58 @@
                         <div class="space-y-2 mb-4">
                             <div class="flex items-start gap-3">
                                 <div
-                                    class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 text-gray-400">
-                                    <i class="fa-solid fa-user"></i>
+                                    class="w-11 h-11 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0 text-gray-400">
+                                    @if (!empty($job->customer->profile_image))
+                                        <img src="{{ asset('storage/' . $job->customer->profile_image) }}"
+                                            alt="{{ $job->customer->name }}" class="w-full h-full object-cover">
+                                    @else
+                                        <i class="fa-solid fa-user"></i>
+                                    @endif
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-gray-700">{{ $job->customer->name }}</p>
                                     <a href="tel:{{ $job->customer->phone }}"
                                         class="text-xs text-blue-500 hover:underline flex items-center gap-1"><i
                                             class="fa-solid fa-phone"></i> {{ $job->customer->phone }}</a>
+                                    @php
+                                        $manualWorkMapUrl = $job->customer->work_map_url ?? null;
+                                        $workLat = $job->customer->work_latitude ?? null;
+                                        $workLng = $job->customer->work_longitude ?? null;
+                                        $workAddress = $job->customer->work_location_address ?? null;
+
+                                        $quickMapSource = !empty($manualWorkMapUrl)
+                                            ? 'ลิงก์หน้างาน'
+                                            : ((!empty($workLat) && !empty($workLng))
+                                                ? 'พิกัดหน้างาน'
+                                                : (isset($job->customer->latitude)
+                                                    ? 'พิกัดลูกค้า'
+                                                    : 'ที่อยู่ข้อความ'));
+
+                                        $quickMapLink = !empty($manualWorkMapUrl)
+                                            ? $manualWorkMapUrl
+                                            : ((!empty($workLat) && !empty($workLng))
+                                                ? "https://maps.google.com/maps?q={$workLat},{$workLng}"
+                                                : (isset($job->customer->latitude)
+                                                    ? "https://maps.google.com/maps?q={$job->customer->latitude},{$job->customer->longitude}"
+                                                    : 'https://maps.google.com/maps?q=' . urlencode($workAddress ?: ($job->customer->address ?? ''))));
+                                    @endphp
+                                    <a href="{{ $quickMapLink }}" target="_blank"
+                                        class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-100 hover:bg-blue-600 hover:text-white transition">
+                                        <i class="fa-solid fa-map-location-dot"></i> นำทางเร็ว
+                                    </a>
+                                    <p class="text-[10px] text-blue-700/70 mt-1">แหล่งตำแหน่ง: {{ $quickMapSource }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
                                 <div
-                                    class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0 text-gray-400">
-                                    <i class="fa-solid fa-tractor"></i>
+                                    class="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center flex-shrink-0 text-gray-400">
+                                    @if (!empty($job->equipment->image_path))
+                                        <img src="{{ asset($job->equipment->image_path) }}"
+                                            alt="{{ $job->equipment->name }}"
+                                            class="w-full h-full object-cover">
+                                    @else
+                                        <i class="fa-solid fa-tractor text-xl"></i>
+                                    @endif
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600">{{ $job->equipment->name }} <span

@@ -86,8 +86,8 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">ที่อยู่ (เลขที่, หมู่, ถนน)</label>
-                        <textarea name="address" rows="2" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-3">{{ old('address', $customer->address) }}</textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ที่อยู่ (เลขที่, หมู่, ถนน) *</label>
+                        <textarea name="address" rows="2" required class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm p-3">{{ old('address', $customer->address) }}</textarea>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">ตำบล/แขวง</label>
@@ -117,6 +117,28 @@
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">ลองจิจูด (Longitude)</label>
                                 <input type="text" name="longitude" value="{{ old('longitude', $customer->longitude) }}" class="block w-full border-gray-300 rounded-xl shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm py-2.5" placeholder="ตัวอย่าง: 100.728956">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2 mt-2 p-5 bg-blue-50 rounded-2xl border border-blue-200">
+                        <label class="block text-sm font-bold text-blue-800 mb-3"><i class="fa-solid fa-location-crosshairs mr-1"></i> สถานที่ปฏิบัติงาน (แยกจากที่อยู่ลูกค้า)</label>
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-blue-700 mb-1">ลิงก์ Google Maps ของหน้างาน</label>
+                            <input type="url" name="work_map_url" value="{{ old('work_map_url', $customer->work_map_url) }}" class="block w-full border-blue-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5 px-3" placeholder="https://maps.app.goo.gl/... หรือ https://www.google.com/maps?q=...">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-medium text-blue-700 mb-1">คำอธิบายสถานที่/จุดนัดหมาย</label>
+                            <textarea name="work_location_address" rows="2" class="block w-full border-blue-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-3">{{ old('work_location_address', $customer->work_location_address) }}</textarea>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-blue-700 mb-1">ละติจูดหน้างาน (LAT)</label>
+                                <input type="text" id="work_latitude" name="work_latitude" value="{{ old('work_latitude', $customer->work_latitude) }}" class="block w-full border-blue-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5" placeholder="ตัวอย่าง: 14.038481">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-blue-700 mb-1">ลองจิจูดหน้างาน (LNG)</label>
+                                <input type="text" id="work_longitude" name="work_longitude" value="{{ old('work_longitude', $customer->work_longitude) }}" class="block w-full border-blue-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5" placeholder="ตัวอย่าง: 100.728956">
                             </div>
                         </div>
                     </div>
@@ -162,6 +184,7 @@
             reader.readAsDataURL(input.files[0]);
         }
     }
+
 </script>
 @endpush
 @endsection

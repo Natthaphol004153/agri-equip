@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Equipment;
 use App\Models\MaintenanceLog;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class MaintenanceController extends Controller
 {
@@ -15,7 +16,7 @@ class MaintenanceController extends Controller
     {
         // รายการรอรับเรื่อง
         $reportedIssues = MaintenanceLog::where('status', 'pending')
-            ->with(['equipment'])
+            ->with(['equipment', 'reportedBy'])
             ->orderBy('created_at', 'asc')
             ->get();
 
@@ -36,12 +37,12 @@ class MaintenanceController extends Controller
 
         // กำลังซ่อม
         $inMaintenance = MaintenanceLog::where('status', 'in_progress')
-            ->with('equipment')
+            ->with(['equipment', 'reportedBy'])
             ->get();
 
         // ประวัติย้อนหลัง (10 รายการ)
         $history = MaintenanceLog::where('status', 'completed')
-            ->with('equipment')
+            ->with(['equipment', 'reportedBy'])
             ->latest()
             ->take(10)
             ->get();
@@ -105,6 +106,7 @@ class MaintenanceController extends Controller
 
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
+            'reported_by_user_id' => Auth::id(),
             'maintenance_date' => now(),
             'description' => $request->description,
             'status' => 'in_progress',
@@ -126,6 +128,7 @@ class MaintenanceController extends Controller
 
         MaintenanceLog::create([
             'equipment_id' => $equipment->id,
+            'reported_by_user_id' => Auth::id(),
             'maintenance_date' => now(),
             'description' => $request->description ?? 'ตรวจเช็คตามระยะ (Auto Start)',
             'total_cost' => 0, // ✅ แก้เป็น total_cost

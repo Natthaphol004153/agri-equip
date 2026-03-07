@@ -45,11 +45,20 @@
                     <i class="fa-solid fa-map-location-dot text-agri-primary"></i> สถานที่ให้บริการ
                 </h3>
                 <div class="space-y-2 text-sm text-gray-600">
-                    <p>{{ $booking->customer->address ?? 'ไม่ระบุที่อยู่' }}</p>
+                    <p>{{ $booking->customer->work_location_address ?? $booking->customer->address ?? 'ไม่ระบุที่อยู่' }}</p>
                     @php
-                        $customerMapLink = isset($booking->customer->latitude) ?
-                            "https://maps.google.com/maps?q={$booking->customer->latitude},{$booking->customer->longitude}" :
-                            "https://maps.google.com/maps?q=" . urlencode($booking->customer->address ?? '');
+                        $manualWorkMapUrl = $booking->customer->work_map_url ?? null;
+                        $workLat = $booking->customer->work_latitude ?? null;
+                        $workLng = $booking->customer->work_longitude ?? null;
+                        $workAddress = $booking->customer->work_location_address ?? null;
+
+                        $customerMapLink = !empty($manualWorkMapUrl)
+                            ? $manualWorkMapUrl
+                            : ((!empty($workLat) && !empty($workLng))
+                                ? "https://maps.google.com/maps?q={$workLat},{$workLng}"
+                                : (isset($booking->customer->latitude)
+                                    ? "https://maps.google.com/maps?q={$booking->customer->latitude},{$booking->customer->longitude}"
+                                    : "https://maps.google.com/maps?q=" . urlencode($workAddress ?: ($booking->customer->address ?? ''))));
                     @endphp
                     <a href="{{ $customerMapLink }}" target="_blank"
                         class="inline-flex items-center gap-2 text-blue-600 font-medium hover:underline">

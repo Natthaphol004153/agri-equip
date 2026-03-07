@@ -4,6 +4,15 @@
 @section('header', 'เปิดใบสั่งซ่อมบำรุง')
 
 @section('content')
+@php
+    $viewer = auth()->user();
+    $viewerName = $viewer->name ?? 'ไม่ทราบชื่อผู้ใช้งาน';
+    $viewerRole = match ($viewer->role ?? null) {
+        'admin' => 'แอดมิน',
+        'staff' => 'พนักงาน',
+        default => 'ผู้ใช้งานระบบ',
+    };
+@endphp
 <div class="max-w-2xl mx-auto" x-data="{ isSubmitting: false }">
     <div class="flex items-center gap-2 mb-4">
         <a href="{{ route('admin.maintenance.index') }}" class="text-gray-500 hover:text-gray-700 font-bold text-sm transition">
@@ -39,6 +48,14 @@
                 <h2 class="text-xl font-bold text-gray-800">เปิดบิลส่งซ่อมใหม่</h2>
                 <p class="text-sm text-gray-500">สำหรับรถที่ว่างอยู่ หรือต้องการเข้าเช็คระยะ</p>
             </div>
+        </div>
+
+        <div class="mb-6 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+            <div class="flex items-center gap-2 text-indigo-700 font-bold">
+                <i class="fa-solid fa-user-check"></i>
+                ผู้ที่กำลังเปิดฟอร์มนี้
+            </div>
+            <p class="mt-1 text-indigo-800">{{ $viewerName }} ({{ $viewerRole }})</p>
         </div>
 
         <form action="{{ route('admin.maintenance.store') }}" method="POST" @submit="isSubmitting = true">

@@ -241,6 +241,7 @@ class StaffJobController extends Controller
 
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
+            'reported_by_user_id' => Auth::id(),
             'description' => $request->description,
             'image_url' => $imagePath,
             'maintenance_date' => now(),
@@ -290,6 +291,7 @@ class StaffJobController extends Controller
         // 3. บันทึกลงตาราง MaintenanceLog
         MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
+            'reported_by_user_id' => Auth::id(),
             'description' => $request->description,
             'image_url' => $imagePath, // บันทึกรูปหน้างาน
             'status' => 'pending',     // สถานะ: รอแอดมินรับเรื่อง

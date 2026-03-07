@@ -196,6 +196,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', [StaffJobController::class, 'maintenanceIndex'])->name('index');
             Route::get('/create', [StaffJobController::class, 'createReport'])->name('create');
             Route::post('/store', [StaffJobController::class, 'storeReport'])->name('store');
+            Route::get('/{id}', [StaffJobController::class, 'showReport'])->name('show');
         });
 
         Route::get('/fuel/create', [FuelController::class, 'create'])->name('fuel.create');

@@ -16,6 +16,7 @@ class MaintenanceLog extends Model
     protected $fillable = [
         'equipment_id',
         'booking_id',
+        'reported_by_user_id',
         'maintenance_type',
         'description',
         'status',
@@ -45,5 +46,11 @@ class MaintenanceLog extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    // ความสัมพันธ์: ใครเป็นผู้แจ้งซ่อม
+    public function reportedBy()
+    {
+        return $this->belongsTo(User::class, 'reported_by_user_id');
     }
 }
