@@ -70,8 +70,8 @@
                         <div class="bg-red-50 text-red-600 p-4 rounded-xl border border-red-200 text-sm font-bold flex items-center gap-3">
                             <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
                             <div>
-                                ตอนนี้ไม่มีรถคันไหนว่างเลย
-                                <span class="block font-normal text-xs text-red-500 mt-0.5">รถทุกคันอาจจะติดงานลูกค้า หรือกำลังซ่อมอยู่</span>
+                                ตอนนี้ไม่มีเครื่องจักรที่พร้อมส่งซ่อมเพิ่ม
+                                <span class="block font-normal text-xs text-red-500 mt-0.5">เครื่องจักรทั้งหมดอาจอยู่ระหว่างซ่อมหรือมีใบซ่อมค้างอยู่แล้ว</span>
                             </div>
                         </div>
                     @else
@@ -82,8 +82,21 @@
                             <select name="equipment_id" required class="w-full pl-11 pr-10 py-3.5 rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-700 font-medium appearance-none bg-white cursor-pointer hover:bg-gray-50 transition">
                                 <option value="" disabled selected>-- แตะเพื่อเลือกรถ --</option>
                                 @foreach($equipments as $eq)
+                                    @php
+                                        $isKmTracking = ($eq->tracking_type ?? 'hours') === 'kilometers';
+                                        $meterValue = $isKmTracking ? ($eq->current_kilometers ?? 0) : ($eq->current_hours ?? 0);
+                                        $meterUnit = $isKmTracking ? 'กม.' : 'ชม.';
+                                        $statusLabel = match($eq->current_status) {
+                                            'available' => 'ว่าง',
+                                            'booked' => 'จองคิวแล้ว',
+                                            'in_use' => 'กำลังใช้งาน',
+                                            'breakdown' => 'เสีย/งดใช้',
+                                            'maintenance' => 'กำลังซ่อม',
+                                            default => $eq->current_status,
+                                        };
+                                    @endphp
                                     <option value="{{ $eq->id }}" {{ old('equipment_id') == $eq->id ? 'selected' : '' }}>
-                                        {{ $eq->name }} ({{ $eq->equipment_code }}) - ใช้งานไป {{ number_format($eq->current_hours) }} ชม.
+                                        {{ $eq->name }} ({{ $eq->equipment_code }}) - สถานะ: {{ $statusLabel }} - มิเตอร์ {{ number_format($meterValue) }} {{ $meterUnit }}
                                     </option>
                                 @endforeach
                             </select>

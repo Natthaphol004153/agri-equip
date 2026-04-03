@@ -103,11 +103,24 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'name' => 'required',
-            'type' => 'required|in:drone,tractor,harvester,sprayer,other',
-            'maintenance_hour_threshold' => 'required|numeric',
+            'type' => 'required|in:drone,tractor,harvester,sprayer,excavator,other',
+            'tracking_type' => 'nullable|in:hours,kilometers',
+            'maintenance_hour_threshold' => 'nullable|numeric|min:1',
+            'maintenance_km_threshold' => 'nullable|numeric|min:1',
+            'initial_meter' => 'nullable|numeric|min:0',
             'registration_number' => 'nullable|string',
             'image' => 'nullable|image'
         ]);
+
+        $data['tracking_type'] = $data['tracking_type'] ?? 'hours';
+
+        if ($data['tracking_type'] === 'hours' && empty($data['maintenance_hour_threshold'])) {
+            return response()->json(['message' => 'maintenance_hour_threshold is required when tracking_type=hours'], 422);
+        }
+
+        if ($data['tracking_type'] === 'kilometers' && empty($data['maintenance_km_threshold'])) {
+            return response()->json(['message' => 'maintenance_km_threshold is required when tracking_type=kilometers'], 422);
+        }
 
         // handle image upload
         if ($request->hasFile('image')) {
@@ -127,6 +140,19 @@ class AdminController extends Controller
 
         $data['equipment_code'] = $code;
         $data['current_status'] = 'available';
+
+        $initialMeter = (float) ($data['initial_meter'] ?? 0);
+        if ($data['tracking_type'] === 'kilometers') {
+            $data['current_kilometers'] = $initialMeter;
+            $data['current_hours'] = 0;
+            $data['maintenance_hour_threshold'] = null;
+        } else {
+            $data['current_hours'] = $initialMeter;
+            $data['current_kilometers'] = 0;
+            $data['maintenance_km_threshold'] = null;
+        }
+
+        unset($data['initial_meter']);
 
         $equipment = Equipment::create($data);
 

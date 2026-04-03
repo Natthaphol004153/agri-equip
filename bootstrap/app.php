@@ -21,8 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.role' => \App\Http\Middleware\ApiRole::class,
         ]);
 
-        // รองรับ Reverse Proxy / Cloudflare
-        // $middleware->trustProxies(at: '*');
+        // Trust reverse proxy headers (e.g. Cloudflare/Nginx) so HTTPS is detected correctly.
+        $middleware->trustProxies(at: '*');
 
         // ✅ 2. ตั้งค่า Redirect (กันหน้า Login วนลูป)
         $middleware->redirectUsersTo(function (Request $request) {

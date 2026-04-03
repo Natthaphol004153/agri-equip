@@ -44,7 +44,7 @@ class MaintenanceApiTest extends TestCase
         ]);
     }
 
-    public function test_complete_maintenance_updates_log_and_resets_hours()
+    public function test_complete_maintenance_updates_log_without_resetting_meter()
     {
         $equipment = Equipment::create([
             'equipment_code' => 'EQ-200',
@@ -74,13 +74,15 @@ class MaintenanceApiTest extends TestCase
 
         $this->assertDatabaseHas('maintenance_logs', [
             'id' => $log->id,
-            'total_cost' => 1500
+            'total_cost' => 1500,
+            'reset_counter' => 1,
+            'service_meter_reading' => 500,
         ]);
 
         $this->assertDatabaseHas('equipment', [
             'id' => $equipment->id,
             'current_status' => 'available',
-            'current_hours' => 0
+            'current_hours' => 500,
         ]);
     }
 }

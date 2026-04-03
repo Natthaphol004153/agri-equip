@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Customer;
 use App\Models\Equipment;
 use App\Services\BookingService;
+use App\Services\LineBotService;
 use Carbon\Carbon;
 use Exception;
 
@@ -36,7 +37,13 @@ class JobController extends Controller
         $query = Booking::with(['customer', 'equipment', 'assignedStaff'])->latest();
 
         if ($status !== 'all') {
-            $query->where('status', $status);
+            $statusList = array_values(array_filter(array_map('trim', explode(',', $status))));
+
+            if (count($statusList) > 1) {
+                $query->whereIn('status', $statusList);
+            } elseif (!empty($statusList)) {
+                $query->where('status', $statusList[0]);
+            }
         }
 
         if ($machineType !== 'all') {
@@ -211,7 +218,40 @@ class JobController extends Controller
 
         return redirect()->route('admin.jobs.index')->with('success', 'บันทึกข้อมูลงานเรียบร้อยแล้ว');
     }
+    // ตัวอย่าง: ฟังก์ชันที่พนักงานกดอัปเดตสถานะงาน
+    public function updateStatus(Request $request, $id)
+    {
+        // โค้ดเดิมของซีที่บันทึกข้อมูลลง Database
+        $job = Job::findOrFail($id);
+        $job->status = $request->status;
+        $job->save();
 
+        // --------------------------------------------------
+        // โค้ดส่วนที่เพิ่มเข้ามา: เตรียมข้อความส่ง LINE หาแอดมิน
+        // --------------------------------------------------
+        
+        // เช็คว่าพนักงานอัปเดตสถานะเป็นอะไร จะได้ส่งข้อความให้ตรงกัน
+        if ($job->status === 'in_progress') {
+            $message = "🚜 [แจ้งเตือน: เริ่มปฏิบัติงาน] 🚜\n";
+            $message .= "พนักงาน: " . auth()->user()->name . "\n";
+            $message .= "อัปเดตสถานะ: เริ่มนำเครื่องจักรลงพื้นที่แล้ว\n";
+            $message .= "รหัสงาน: " . $job->job_code . "\n";
+            $message .= "เวลาเริ่ม: " . now()->format('H:i น.');
+            
+            LineBotService::sendAdminNotify($message);
+            
+        } elseif ($job->status === 'completed') {
+            $message = "✅ [แจ้งเตือน: ปิดจ็อบสำเร็จ] ✅\n";
+            $message .= "พนักงาน: " . auth()->user()->name . "\n";
+            $message .= "รหัสงาน: " . $job->job_code . "\n";
+            $message .= "สถานะ: ทำงานเสร็จสิ้นเรียบร้อยแล้ว\n";
+            $message .= "🔍 แอดมินตรวจสอบได้ที่: " . url('/admin/jobs/' . $job->id);
+            
+            LineBotService::sendAdminNotify($message);
+        }
+
+        return redirect()->back()->with('success', 'อัปเดตสถานะเรียบร้อย');
+    }
     /*
     |--------------------------------------------------------------------------
     | 3. ⚙️ ACTION ZONE (ดำเนินการ)
@@ -250,9 +290,18 @@ class JobController extends Controller
         $meterBeforeStart = (float) ($job->meter_before_start ?? 0);
         $minimumAllowedMeter = max($currentMeter, $meterBeforeStart);
 
-        if ((float) $job->meter_reading < $minimumAllowedMeter) {
-            $unit = $equipment->tracking_type == 'kilometers' ? 'กม.' : 'ชม.';
+        $normalizedMeterReading = (float) $job->meter_reading;
 
+        // รองรับการกรอก 2 รูปแบบ:
+        // 1) เลขสะสมปลายงาน (เช่น 105)
+        // 2) เลขที่ใช้งานเพิ่มระหว่างงาน (เช่น 5) -> แปลงเป็นเลขสะสมอัตโนมัติ
+        if ($normalizedMeterReading < $minimumAllowedMeter) {
+            $baseMeter = max($currentMeter, $meterBeforeStart);
+            $normalizedMeterReading = $baseMeter + $normalizedMeterReading;
+        }
+
+        if ($normalizedMeterReading < $minimumAllowedMeter) {
+            $unit = $equipment->tracking_type == 'kilometers' ? 'กม.' : 'ชม.';
             return back()->with('error', "อนุมัติไม่ได้: เลขหน้าปัดใหม่ ({$job->meter_reading} {$unit}) น้อยกว่าค่าขั้นต่ำที่อนุญาต ({$minimumAllowedMeter} {$unit})");
         }
 
@@ -263,13 +312,18 @@ class JobController extends Controller
         ]);
 
         // 2. อัปเดตเลขไมล์/ชั่วโมง ให้รถคันนั้น
-        if ($job->meter_reading > 0) {
+        if ($normalizedMeterReading > 0) {
             if ($equipment->tracking_type == 'hours') {
                 // ถ้านับเป็นชั่วโมง อัปเดตฟิลด์ชั่วโมง
-                $equipment->update(['current_hours' => $job->meter_reading]);
+                $equipment->update(['current_hours' => $normalizedMeterReading]);
             } else {
                 // ถ้านับเป็นกิโลเมตร อัปเดตฟิลด์กิโลเมตร
-                $equipment->update(['current_kilometers' => $job->meter_reading]);
+                $equipment->update(['current_kilometers' => $normalizedMeterReading]);
+            }
+
+            // เก็บค่าที่ normalize แล้วกลับไปใน job เพื่อให้ข้อมูลประวัติไม่สับสน
+            if ((float) $job->meter_reading !== $normalizedMeterReading) {
+                $job->update(['meter_reading' => $normalizedMeterReading]);
             }
         }
 
@@ -280,7 +334,7 @@ class JobController extends Controller
     {
         $job = Booking::findOrFail($id);
         $job->update(['status' => 'cancelled']);
-        return response()->json(['success' => true, 'message' => 'ยกเลิกงานเรียบร้อย']);
+        return redirect()->route('admin.jobs.index')->with('success', 'ยกเลิกงานเรียบร้อย');
     }
 
     public function updateDriver(Request $request, $id)
@@ -356,6 +410,19 @@ class JobController extends Controller
         $baht_text = $this->baht_text($net_total);
 
         return view('admin.jobs.receipt', compact('booking', 'net_total', 'baht_text'));
+    }
+
+    public function publicReceipt($id)
+    {
+        $booking = Booking::with(['customer', 'equipment', 'assignedStaff'])->findOrFail($id);
+
+        if (!in_array($booking->status, ['completed_pending_approval', 'completed'], true)) {
+            abort(403, 'Receipt is not available for this job status.');
+        }
+
+        $net_total = max(0, (float) $booking->total_price - (float) $booking->deposit_amount);
+
+        return view('public.job-receipt', compact('booking', 'net_total'));
     }
 
     private function baht_text($number)

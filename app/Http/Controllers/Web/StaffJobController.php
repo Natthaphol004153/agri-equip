@@ -9,9 +9,11 @@ use App\Models\Equipment;
 use App\Models\MaintenanceLog;
 use App\Services\PromptPayService;
 use App\Services\EasySlipSDK;
+use App\Services\LineBotService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
@@ -77,7 +79,7 @@ class StaffJobController extends Controller
 
     public function startWork(Request $request, $id)
     {
-        $job = Booking::with(['equipment', 'customer'])
+        $job = Booking::with(['equipment', 'customer', 'assignedStaff'])
             ->where('id', $id)
             ->where('assigned_staff_id', Auth::id())
             ->firstOrFail();
@@ -93,6 +95,20 @@ class StaffJobController extends Controller
             'actual_start' => $startTime,
             'meter_before_start' => $meterBeforeStart,
         ]);
+
+        $staffName = $job->assignedStaff->name ?? (Auth::user()->name ?? '-');
+
+        $message = "🚜 เริ่มปฏิบัติงานแล้ว\n";
+        $message .= "━━━━━━━━━━━━\n";
+        $message .= "🆔 งาน: #" . ($job->job_number ?? $job->id) . "\n";
+        $message .= "👷 พนักงาน: {$staffName}\n";
+        $message .= "🙋 ลูกค้า: " . ($job->customer->name ?? '-') . "\n";
+        $message .= "🕒 เวลาเริ่ม: " . $startTime->format('d/m/Y H:i') . " น.\n";
+        $message .= "📌 สถานะ: กำลังดำเนินงาน";
+
+        if (!LineBotService::sendAdminNotify($message)) {
+            Log::warning('LINE notify failed on startWork', ['job_id' => $job->id]);
+        }
 
         if ($request->ajax()) {
             return response()->json([
@@ -110,7 +126,7 @@ class StaffJobController extends Controller
     {
         Log::info("Job Finish Process Initiated: Job ID {$id}");
 
-        $job = Booking::with(['equipment', 'customer'])
+        $job = Booking::with(['equipment', 'customer', 'assignedStaff'])
             ->where('id', $id)
             ->where('assigned_staff_id', Auth::id())
             ->firstOrFail();
@@ -171,6 +187,26 @@ class StaffJobController extends Controller
         }
 
         $job->update($updateData);
+
+        $publicReceiptUrl = URL::temporarySignedRoute(
+            'public.jobs.receipt',
+            now()->addDays(30),
+            ['id' => $job->id]
+        );
+
+        $staffName = $job->assignedStaff->name ?? (Auth::user()->name ?? '-');
+
+        $message = "✅ งานเสร็จแล้ว รอตรวจสอบ\n";
+        $message .= "━━━━━━━━━━━━\n";
+        $message .= "🆔 งาน: #" . ($job->job_number ?? $job->id) . "\n";
+        $message .= "👷 พนักงาน: {$staffName}\n";
+        $message .= "📍 สถานะ: รอตรวจสอบโดยแอดมิน\n";
+        $message .= "💰 ยอดสุทธิ: " . number_format((float) $balance, 2) . " บาท\n";
+        $message .= "🧾 ดูใบเสร็จและหลักฐาน:\n" . $publicReceiptUrl;
+
+        if (!LineBotService::sendAdminNotify($message)) {
+            Log::warning('LINE notify failed on finishWork', ['job_id' => $job->id]);
+        }
 
         if ($request->ajax()) {
             return response()->json([
@@ -239,7 +275,7 @@ class StaffJobController extends Controller
             $imagePath = $request->file('image')->store('maintenance_reports', 'public');
         }
 
-        MaintenanceLog::create([
+        $maintenanceLog = MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
             'reported_by_user_id' => Auth::id(),
             'description' => $request->description,
@@ -250,6 +286,8 @@ class StaffJobController extends Controller
         ]);
 
         Equipment::where('id', $request->equipment_id)->update(['current_status' => 'maintenance']);
+
+        $this->notifyMaintenanceRequest($maintenanceLog, 'general');
 
         return back()->with('success', 'บันทึกข้อมูลการแจ้งซ่อมเรียบร้อยแล้ว สถานะอุปกรณ์ถูกเปลี่ยนเป็น Maintenance');
     }
@@ -289,7 +327,7 @@ class StaffJobController extends Controller
         }
 
         // 3. บันทึกลงตาราง MaintenanceLog
-        MaintenanceLog::create([
+        $maintenanceLog = MaintenanceLog::create([
             'equipment_id' => $request->equipment_id,
             'reported_by_user_id' => Auth::id(),
             'description' => $request->description,
@@ -302,6 +340,8 @@ class StaffJobController extends Controller
         Equipment::where('id', $request->equipment_id)->update([
             'current_status' => 'maintenance'
         ]);
+
+        $this->notifyMaintenanceRequest($maintenanceLog, 'staff-maintenance');
 
         // 5. เด้งกลับหน้าประวัติ พร้อมข้อความสำเร็จ
         return redirect()->route('staff.maintenance.index')
@@ -329,5 +369,28 @@ class StaffJobController extends Controller
         }
 
         return back()->with('success', 'แจ้งซ่อมเรียบร้อย โปรดรอแอดมินติดต่อกลับ');
+    }
+
+    private function notifyMaintenanceRequest(MaintenanceLog $maintenanceLog, string $source): void
+    {
+        $equipment = Equipment::find($maintenanceLog->equipment_id);
+        $reporterName = Auth::user()->name ?? '-';
+        $sourceLabel = $source === 'staff-maintenance' ? 'หน้าแจ้งซ่อมพนักงาน' : 'แจ้งเหตุขัดข้องทั่วไป';
+
+        $message = "🛠️ แจ้งซ่อมใหม่จากพนักงาน\n";
+        $message .= "━━━━━━━━━━━━\n";
+        $message .= "👤 ผู้แจ้ง: {$reporterName}\n";
+        $message .= "📮 ช่องทาง: {$sourceLabel}\n";
+        $message .= "🚜 เครื่องจักร: " . ($equipment->name ?? '-') . "\n";
+        $message .= "🏷️ รหัสอุปกรณ์: " . ($equipment->equipment_code ?? '-') . "\n";
+        $message .= "📝 อาการ/รายละเอียด:\n" . ($maintenanceLog->description ?? '-') . "\n";
+        $message .= "🔎 ตรวจสอบรายการซ่อม:\n" . route('admin.maintenance.index');
+
+        if (!LineBotService::sendAdminNotify($message)) {
+            Log::warning('LINE notify failed on maintenance request', [
+                'maintenance_log_id' => $maintenanceLog->id,
+                'source' => $source,
+            ]);
+        }
     }
 }

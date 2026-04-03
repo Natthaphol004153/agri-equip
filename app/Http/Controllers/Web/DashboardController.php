@@ -32,14 +32,11 @@ class DashboardController extends Controller
         // 2. Operations (การดำเนินงาน)
         // ------------------------------------------------------------------
         $today = Carbon::today();
+        $dashboardStats = $this->buildOperationalStats($today);
 
-        $completedJobs = Booking::where('status', 'completed')
-            ->whereMonth('actual_end', $today->month)
-            ->whereYear('actual_end', $today->year)
-            ->count();
-            
-        $activeMachines = Booking::where('status', 'in_progress')->count();
-        $availableStaff = User::where('role', 'staff')->count(); // อาจต้องเพิ่ม logic เช็คพนักงานที่ว่างจริงๆ
+        $completedJobs = $dashboardStats['completed_jobs'];
+        $activeMachines = $dashboardStats['active_machines'];
+        $availableStaff = $dashboardStats['available_staff'];
         $fuelRequests = FuelLog::whereDate('created_at', $today)->count();
 
         // ------------------------------------------------------------------
@@ -67,7 +64,7 @@ class DashboardController extends Controller
             ->whereDate('scheduled_start', '>=', $today)
             ->get();
             
-        $pendingJobsCount = $pendingJobs->count(); // สำหรับแสดงในกล่องสถิติ
+        $pendingJobsCount = $dashboardStats['pending_jobs'];
 
         // 3.3 งานรออนุมัติ แต่เลยวันนัดหมายมาแล้ว (Expired Pending) ⚠️
         $expiredPendingJobs = Booking::whereIn('status', ['pending_approval', 'pending'])
@@ -79,10 +76,37 @@ class DashboardController extends Controller
             ->whereDate('scheduled_start', '<', $today)
             ->get();
 
-        // แจ้งเตือนซ่อมบำรุง (ใกล้ถึงชั่วโมงซ่อม)
-        $maintenanceAlerts = Equipment::whereRaw('current_hours >= (maintenance_hour_threshold - 10)')
-            ->orderByRaw('(maintenance_hour_threshold - current_hours) ASC')
-            ->get();
+        // แจ้งเตือนซ่อมบำรุง: วัดจากมิเตอร์ที่ใช้ไปหลัง "ซ่อมใหญ่ล่าสุด"
+        $majorServiceMeters = MaintenanceLog::where('status', 'completed')
+            ->where('reset_counter', true)
+            ->whereNotNull('service_meter_reading')
+            ->orderByDesc('completion_date')
+            ->get()
+            ->unique('equipment_id')
+            ->mapWithKeys(function (MaintenanceLog $log) {
+                return [$log->equipment_id => (float) $log->service_meter_reading];
+            })
+            ->toArray();
+
+        $maintenanceAlerts = Equipment::all()
+            ->filter(function (Equipment $equipment) use ($majorServiceMeters) {
+                $threshold = $equipment->getThresholdMeterValue();
+                if ($threshold <= 0) {
+                    return false;
+                }
+
+                $baseMeter = (float) ($majorServiceMeters[$equipment->id] ?? 0);
+                $usedSinceMajorService = max(0, $equipment->getCurrentMeterValue() - $baseMeter);
+
+                return $usedSinceMajorService >= ($threshold - 10);
+            })
+            ->sortBy(function (Equipment $equipment) use ($majorServiceMeters) {
+                $threshold = $equipment->getThresholdMeterValue();
+                $baseMeter = (float) ($majorServiceMeters[$equipment->id] ?? 0);
+                $usedSinceMajorService = max(0, $equipment->getCurrentMeterValue() - $baseMeter);
+                return $threshold - $usedSinceMajorService;
+            })
+            ->values();
 
         // ------------------------------------------------------------------
         // 4. Calendar Events (ปฏิทินงาน)
@@ -129,8 +153,57 @@ class DashboardController extends Controller
             'maintenanceCost', 
             'completedJobs', 'pendingJobsCount', 'activeMachines', 'availableStaff', 'fuelRequests',
             'maintenanceAlerts', 'calendarBookings',
-            'todayJobs', 'pendingJobs', 'expiredPendingJobs', 'overdueJobs' // ✅ ส่งตัวแปรใหม่ไป View
+            'todayJobs', 'pendingJobs', 'expiredPendingJobs', 'overdueJobs',
+            'dashboardStats' // ✅ สถิติการ์ดสรุปที่ดึงจาก controller โดยตรง
         ));
+    }
+
+    public function getOperationalStats()
+    {
+        $stats = $this->buildOperationalStats(Carbon::today());
+
+        return response()->json([
+            'stats' => $stats,
+            'updated_at' => now()->toDateTimeString(),
+        ]);
+    }
+
+    private function buildOperationalStats(Carbon $today): array
+    {
+        $pendingJobsCount = Booking::whereIn('status', [
+            'pending_approval',
+            'completed_pending_approval',
+            'pending',
+        ])->count();
+
+        // นับจำนวนเครื่องแบบไม่ซ้ำกัน ลดการนับซ้ำจากหลายใบงานของเครื่องเดียวกัน
+        $activeMachines = Booking::whereIn('status', ['scheduled', 'in_progress'])
+            ->whereNotNull('equipment_id')
+            ->distinct()
+            ->count('equipment_id');
+
+        // นับพนักงานที่ active จริง เพื่อลดการแสดงซ้ำจากข้อมูลผู้ใช้ที่ปิดการใช้งานแล้ว
+        $availableStaff = User::where('role', 'staff')
+            ->where('is_active', true)
+            ->count();
+
+        $completedJobs = Booking::where('status', 'completed')
+            ->whereMonth('actual_end', $today->month)
+            ->whereYear('actual_end', $today->year)
+            ->count();
+
+        $activeStaff = Booking::whereIn('status', ['scheduled', 'in_progress'])
+            ->whereNotNull('assigned_staff_id')
+            ->distinct()
+            ->count('assigned_staff_id');
+
+        return [
+            'pending_jobs' => $pendingJobsCount,
+            'active_machines' => $activeMachines,
+            'available_staff' => $availableStaff,
+            'completed_jobs' => $completedJobs,
+            'active_staff' => $activeStaff,
+        ];
     }
 
     public function getFinancialData(Request $request)

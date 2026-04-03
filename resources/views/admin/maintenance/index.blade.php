@@ -4,7 +4,7 @@
 @section('header', 'ศูนย์ซ่อมบำรุงเครื่องจักร (Maintenance)')
 
 @section('content')
-    <div class="max-w-7xl mx-auto space-y-6" x-data="{ finishModal: false, logId: '', equipName: '', billModal: false, billImageUrl: '', billEquipName: '', billDate: '', billCost: '' }">
+    <div class="max-w-7xl mx-auto space-y-6" x-data="{ finishModal: false, logId: '', equipName: '', meterCurrent: 0, meterBase: 0, meterUnit: 'ชม.', billModal: false, billImageUrl: '', billEquipName: '', billDate: '', billCost: '' }">
 
         {{-- 🌟 Header & Action --}}
         <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
@@ -45,7 +45,8 @@
                                     <span
                                         class="text-[10px] text-gray-400">{{ \Carbon\Carbon::parse($issue->created_at)->diffForHumans() }}</span>
                                 </div>
-                                <p class="text-[11px] text-red-600 font-semibold mb-1.5">ผู้แจ้ง: {{ $issue->reportedBy->name ?? 'ไม่ระบุ' }}</p>
+                                <p class="text-[11px] text-red-600 font-semibold mb-1.5">ผู้แจ้ง:
+                                    {{ $issue->reportedBy->name ?? 'ไม่ระบุ' }}</p>
                                 <p class="text-xs text-gray-600 mb-3 line-clamp-2">"{{ $issue->description }}"</p>
                                 <a href="{{ route('admin.maintenance.accept_form', $issue->id) }}"
                                     class="block w-full text-center bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold py-2 rounded-lg transition">
@@ -69,12 +70,27 @@
                     </div>
                     <div class="p-4 space-y-3">
                         @forelse($needMaintenance as $eq)
+                            @php
+                                $isKmTracking = ($eq->tracking_type ?? 'hours') === 'kilometers';
+                                $meterValue = $isKmTracking ? ($eq->current_kilometers ?? 0) : ($eq->current_hours ?? 0);
+                                $meterThreshold = $isKmTracking ? ($eq->maintenance_km_threshold ?? 0) : ($eq->maintenance_hour_threshold ?? 0);
+                                $meterUnit = $isKmTracking ? 'กม.' : 'ชม.';
+                                $baseMeter = (float) ($majorServiceMeters[$eq->id] ?? 0);
+                                $usedSinceMajor = max(0, $meterValue - $baseMeter);
+                                $remainingMeter = $meterThreshold - $usedSinceMajor;
+                            @endphp
                             <div class="border border-yellow-100 bg-white p-3 rounded-xl flex justify-between items-center">
                                 <div>
                                     <p class="font-bold text-gray-800 text-sm">{{ $eq->name }}</p>
-                                    <p class="text-[10px] text-yellow-600 font-bold mt-0.5">ใช้งานไปแล้ว
-                                        {{ number_format($eq->current_hours) }} /
-                                        {{ number_format($eq->maintenance_hour_threshold) }} ชม.</p>
+                                    <p class="text-[10px] text-gray-500 mt-0.5">ตั้งต้นหลังซ่อมใหญ่: {{ number_format($baseMeter) }} {{ $meterUnit }}</p>
+                                    <p class="text-[10px] text-yellow-600 font-bold">ใช้ไปหลังซ่อมใหญ่ {{ number_format($usedSinceMajor) }} / {{ number_format($meterThreshold) }} {{ $meterUnit }}</p>
+                                    <p class="text-[10px] text-gray-600">หน้าปัดปัจจุบัน {{ number_format($meterValue) }} {{ $meterUnit }}
+                                        @if($remainingMeter > 0)
+                                            (เหลือ {{ number_format($remainingMeter) }} {{ $meterUnit }})
+                                        @else
+                                            (เลยกำหนด {{ number_format(abs($remainingMeter)) }} {{ $meterUnit }})
+                                        @endif
+                                    </p>
                                 </div>
                                 <form action="{{ route('admin.maintenance.start', $eq->id) }}" method="POST">
                                     @csrf
@@ -116,11 +132,19 @@
                                     <h4 class="font-bold text-gray-800 text-lg">{{ $log->equipment->name }}</h4>
                                     <p class="text-xs text-blue-600 font-bold mb-2">รหัส:
                                         {{ $log->equipment->equipment_code }}</p>
-                                    <p class="text-[11px] text-gray-500 mb-2">ผู้แจ้ง: {{ $log->reportedBy->name ?? 'ไม่ระบุ' }}</p>
+                                    <p class="text-[11px] text-gray-500 mb-2">ผู้แจ้ง:
+                                        {{ $log->reportedBy->name ?? 'ไม่ระบุ' }}</p>
                                     <p class="text-xs text-gray-500 line-clamp-2 mb-4 h-8">{{ $log->description }}</p>
 
+                                    @php
+                                        $equipment = $log->equipment;
+                                        $isKmTracking = ($equipment->tracking_type ?? 'hours') === 'kilometers';
+                                        $meterCurrent = $isKmTracking ? (float) ($equipment->current_kilometers ?? 0) : (float) ($equipment->current_hours ?? 0);
+                                        $meterBase = (float) ($majorServiceMeters[$equipment->id] ?? 0);
+                                        $meterUnit = $isKmTracking ? 'กม.' : 'ชม.';
+                                    @endphp
                                     <button
-                                        @click="finishModal = true; logId = {{ $log->id }}; equipName = @js($log->equipment->name)"
+                                        @click="finishModal = true; logId = {{ $log->id }}; equipName = @js($equipment->name); meterCurrent = {{ $meterCurrent }}; meterBase = {{ $meterBase }}; meterUnit = @js($meterUnit)"
                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2">
                                         <i class="fa-solid fa-check-double"></i> บันทึกซ่อมเสร็จ
                                     </button>
@@ -152,6 +176,7 @@
                                     <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">รายละเอียด</th>
                                     <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">ผู้แจ้งซ่อม</th>
                                     <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider">อู่/ช่าง</th>
+                                    <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-center">ซ่อมใหญ่</th>
                                     <th class="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-right">
                                         ค่าใช้จ่าย</th>
                                 </tr>
@@ -181,6 +206,13 @@
                                                 {{ $log->service_provider ?? '-' }}
                                             </span>
                                         </td>
+                                        <td class="px-4 py-3.5 text-center">
+                                            @if($log->reset_counter)
+                                                <span class="inline-flex items-center px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 text-xs font-bold">ซ่อมใหญ่</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-500 text-xs font-medium">ปกติ</span>
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-3.5 text-right">
                                             <div class="flex items-center justify-end gap-3">
                                                 @if ($log->receipt_image)
@@ -199,7 +231,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-4 py-8 text-center text-gray-400">
+                                        <td colspan="7" class="px-4 py-8 text-center text-gray-400">
                                             <div class="flex flex-col items-center justify-center">
                                                 <i class="fa-solid fa-inbox text-3xl mb-2 opacity-50"></i>
                                                 <p class="text-sm font-medium">ไม่มีประวัติการซ่อม</p>
@@ -218,9 +250,11 @@
         {{-- 🔥 MODAL: จบงานซ่อม --}}
         <div x-show="finishModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm" @click="finishModal = false"></div>
+                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm"
+                    @click="finishModal = false"></div>
 
-                <div class="relative inline-block w-full max-w-lg overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl border border-blue-100">
+                <div
+                    class="relative inline-block w-full max-w-lg overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl border border-blue-100">
                     <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
                         <div class="flex justify-between items-center">
                             <h3 class="text-lg font-bold flex items-center gap-2">
@@ -237,18 +271,26 @@
                         <div class="mb-4 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
                             <span class="text-blue-700">เครื่องจักร:</span>
                             <span class="font-bold text-blue-900" x-text="equipName"></span>
+                            <div class="mt-2 text-xs text-blue-800 space-y-0.5">
+                                <p>หน้าปัดตั้งต้นหลังซ่อมใหญ่ล่าสุด: <span class="font-bold" x-text="Number(meterBase).toFixed(2)"></span> <span x-text="meterUnit"></span></p>
+                                <p>หน้าปัดปัจจุบัน: <span class="font-bold" x-text="Number(meterCurrent).toFixed(2)"></span> <span x-text="meterUnit"></span></p>
+                                <p>ใช้งานเพิ่มหลังซ่อมใหญ่: <span class="font-bold" x-text="Math.max(0, Number(meterCurrent) - Number(meterBase)).toFixed(2)"></span> <span x-text="meterUnit"></span></p>
+                            </div>
                         </div>
 
-                        <form :action="'/admin/maintenance/log/' + logId + '/finish'" method="POST" enctype="multipart/form-data">
+                        <form :action="'/admin/maintenance/log/' + logId + '/finish'" method="POST"
+                            enctype="multipart/form-data">
                             @csrf
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">ค่าใช้จ่ายในการซ่อม (บาท) *</label>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">ค่าใช้จ่ายในการซ่อม (บาท)
+                                        *</label>
                                     <input type="number" name="total_cost" required min="0" step="0.01"
                                         class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-blue-50/50">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">อู่ / ศูนย์บริการ / ช่างที่ซ่อม (ถ้ามี)</label>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">อู่ / ศูนย์บริการ /
+                                        ช่างที่ซ่อม (ถ้ามี)</label>
                                     <input type="text" name="service_provider"
                                         class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                         placeholder="เช่น ศูนย์คูโบต้า หรือ เปลี่ยนเอง">
@@ -263,18 +305,21 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียดเพิ่มเติม / อะไหล่ที่เปลี่ยน</label>
+                                    <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียดเพิ่มเติม /
+                                        อะไหล่ที่เปลี่ยน</label>
                                     <textarea name="note" rows="2"
                                         class="w-full rounded-xl border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
                                 </div>
 
                                 <div class="bg-yellow-50 p-3 rounded-xl border border-yellow-200">
                                     <label class="flex items-start gap-3 cursor-pointer">
-                                        <input type="checkbox" name="reset_hours" value="1"
+                                        <input type="checkbox" name="major_service" value="1"
                                             class="mt-1 w-5 h-5 text-yellow-600 rounded border-gray-300 focus:ring-yellow-500">
                                         <div>
-                                            <span class="block text-sm font-bold text-yellow-800">รีเซ็ตชั่วโมงการทำงานเป็น 0</span>
-                                            <span class="block text-xs text-yellow-700 mt-0.5">เลือกเมื่อเป็นการถ่ายน้ำมันเครื่องรอบใหญ่ เพื่อเริ่มนับชั่วโมงใหม่</span>
+                                            <span class="block text-sm font-bold text-yellow-800">บันทึกว่าเป็นงานซ่อมใหญ่/ถ่ายน้ำมันเครื่อง</span>
+                                            <span
+                                                class="block text-xs text-yellow-700 mt-0.5">ติ๊กเพื่อบันทึกประวัติซ่อมใหญ่เท่านั้น
+                                                ระบบจะไม่ล้างเลขมิเตอร์หรือหน้าปัดของเครื่อง</span>
                                         </div>
                                     </label>
                                 </div>
@@ -297,9 +342,11 @@
         {{-- 🧾 MODAL: แสดงบิลค่าซ่อม --}}
         <div x-show="billModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4 py-8 text-center">
-                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm" @click="billModal = false"></div>
+                <div class="fixed inset-0 transition-opacity bg-gray-900/75 backdrop-blur-sm" @click="billModal = false">
+                </div>
 
-                <div class="relative inline-block w-full max-w-3xl overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl border border-gray-200">
+                <div
+                    class="relative inline-block w-full max-w-3xl overflow-hidden text-left align-middle transition-all transform bg-white shadow-2xl rounded-3xl border border-gray-200">
                     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
                         <div>
                             <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -319,7 +366,8 @@
                     </div>
 
                     <div class="p-6 bg-white">
-                        <img :src="billImageUrl" alt="ใบเสร็จค่าซ่อม" class="w-full max-h-[70vh] object-contain rounded-xl border border-gray-200 bg-gray-50">
+                        <img :src="billImageUrl" alt="ใบเสร็จค่าซ่อม"
+                            class="w-full max-h-[70vh] object-contain rounded-xl border border-gray-200 bg-gray-50">
                     </div>
 
                     <div class="px-6 py-4 border-t border-gray-100 flex justify-end">

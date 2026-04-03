@@ -8,7 +8,7 @@ use App\Models\Equipment;
 use App\Models\MaintenanceLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-
+use App\Services\LineBotService;
 class MaintenanceController extends Controller
 {
     // 1. หน้า Dashboard รวม
@@ -20,20 +20,26 @@ class MaintenanceController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        // รถถึงระยะซ่อม
-        $needMaintenance = Equipment::where('current_status', 'available')
-            ->where(function ($query) {
-                // แบบที่ 1: ถึงระยะชั่วโมงทำงาน
-                $query->where(function ($q) {
-                    $q->where('tracking_type', 'hours')
-                        ->whereRaw('current_hours >= maintenance_hour_threshold');
-                })
-                    // แบบที่ 2: ถึงระยะกิโลเมตร
-                    ->orWhere(function ($q) {
-                    $q->where('tracking_type', 'kilometers')
-                        ->whereRaw('current_kilometers >= maintenance_km_threshold');
-                });
-            })->get();
+        $availableForMaintenance = Equipment::whereDoesntHave('activeMaintenance')
+            ->orderBy('name')
+            ->get();
+
+        $majorServiceMeters = $this->getLatestMajorServiceMeters();
+
+        // รถถึงระยะซ่อม: คิดจากมิเตอร์ที่ใช้ไปหลัง "ซ่อมใหญ่ล่าสุด"
+        $needMaintenance = $availableForMaintenance
+            ->filter(function (Equipment $equipment) use ($majorServiceMeters) {
+                $threshold = $equipment->getThresholdMeterValue();
+                if ($threshold <= 0) {
+                    return false;
+                }
+
+                $baseMeter = (float) ($majorServiceMeters[$equipment->id] ?? 0);
+                $usedSinceMajorService = max(0, $equipment->getCurrentMeterValue() - $baseMeter);
+
+                return $usedSinceMajorService >= $threshold;
+            })
+            ->values();
 
         // กำลังซ่อม
         $inMaintenance = MaintenanceLog::where('status', 'in_progress')
@@ -47,10 +53,10 @@ class MaintenanceController extends Controller
             ->take(10)
             ->get();
 
-        // ส่งข้อมูลรถไปหน้า Index ด้วย (เผื่อใช้ Modal หรือ Dropdown)
-        $equipments = Equipment::where('current_status', 'available')->get();
+        // ส่งข้อมูลรถไปหน้า Index ด้วย (ตัดเฉพาะคันที่กำลังซ่อมค้างอยู่)
+        $equipments = $availableForMaintenance;
 
-        return view('admin.maintenance.index', compact('reportedIssues', 'needMaintenance', 'inMaintenance', 'history', 'equipments'));
+        return view('admin.maintenance.index', compact('reportedIssues', 'needMaintenance', 'inMaintenance', 'history', 'equipments', 'majorServiceMeters'));
     }
 
     // 2. แสดงฟอร์มรับเรื่อง (GET)
@@ -84,12 +90,14 @@ class MaintenanceController extends Controller
     // 4. หน้าฟอร์มเปิดใบงานเอง (Create)
     public function create()
     {
-        // ดึงรถที่สถานะ Available
-        $equipments = Equipment::where('current_status', 'available')->get();
+        // ดึงรถที่ยังไม่ติดใบซ่อมค้าง (เพื่อให้เห็นเครื่องจักรสถานะอื่นด้วย)
+        $equipments = Equipment::whereDoesntHave('activeMaintenance')
+            ->orderBy('name')
+            ->get();
 
-        // ถ้าไม่มีรถว่างเลย ให้ส่ง array ว่างไปป้องกัน error (หรือจะดึงทั้งหมดก็ได้)
+        // ถ้าไม่มีเครื่องที่พร้อมส่งซ่อม ให้ส่ง array ว่างไปป้องกัน error
         if ($equipments->isEmpty()) {
-            // กรณีอยากดึงรถทั้งหมดมาแสดงแม้ไม่ว่าง (Optional)
+            // กรณีอยากดึงรถทั้งหมดมาแสดงแม้มีใบซ่อมค้าง (Optional)
             // $equipments = Equipment::all();
         }
 
@@ -126,6 +134,14 @@ class MaintenanceController extends Controller
     {
         $equipment = Equipment::findOrFail($id);
 
+        $hasActiveMaintenance = MaintenanceLog::where('equipment_id', $equipment->id)
+            ->whereIn('status', ['pending', 'in_progress'])
+            ->exists();
+
+        if ($hasActiveMaintenance) {
+            return back()->with('error', "{$equipment->name} มีใบซ่อมค้างอยู่แล้ว");
+        }
+
         MaintenanceLog::create([
             'equipment_id' => $equipment->id,
             'reported_by_user_id' => Auth::id(),
@@ -152,7 +168,9 @@ class MaintenanceController extends Controller
         ]);
 
         $log = MaintenanceLog::findOrFail($id);
-        $isReset = $request->has('reset_hours');
+        $isReset = $request->boolean('major_service')
+            || $request->boolean('reset_hours')
+            || $request->boolean('reset_counter');
 
         $updateData = [
             'completion_date' => now(),
@@ -160,6 +178,7 @@ class MaintenanceController extends Controller
             'service_provider' => $request->service_provider,
             'description' => $log->description . ($request->note ? ' | จบงาน: ' . $request->note : ''),
             'reset_counter' => $isReset,
+            'service_meter_reading' => $isReset ? $log->equipment->getCurrentMeterValue() : null,
             'status' => 'completed'
         ];
 
@@ -172,11 +191,22 @@ class MaintenanceController extends Controller
 
         // ปลดล็อกรถ
         $updateEqData = ['current_status' => 'available'];
-        if ($isReset) {
-            $updateEqData['current_hours'] = 0;
-        }
         $log->equipment->update($updateEqData);
 
         return redirect()->route('admin.maintenance.index')->with('success', 'ซ่อมเสร็จสิ้น! บันทึกข้อมูลและใบเสร็จเรียบร้อย 🚜💨');
+    }
+
+    private function getLatestMajorServiceMeters(): array
+    {
+        return MaintenanceLog::where('status', 'completed')
+            ->where('reset_counter', true)
+            ->whereNotNull('service_meter_reading')
+            ->orderByDesc('completion_date')
+            ->get()
+            ->unique('equipment_id')
+            ->mapWithKeys(function (MaintenanceLog $log) {
+                return [$log->equipment_id => (float) $log->service_meter_reading];
+            })
+            ->toArray();
     }
 }

@@ -38,13 +38,12 @@ class Equipment extends Model
     }
     public function getMaintenanceStatusAttribute()
     {
-        // ถ้าไม่ได้ตั้งค่าซ่อมบำรุงไว้ ให้ถือว่าปกติ
-        if (!$this->maintenance_hour_threshold) {
+        $threshold = $this->getThresholdMeterValue();
+        if ($threshold <= 0) {
             return 'ok';
         }
 
-        // คำนวณชั่วโมงที่เหลือ
-        $remaining = $this->maintenance_hour_threshold - $this->current_hours;
+        $remaining = $threshold - $this->getCurrentMeterValue();
 
         if ($remaining <= 0) {
             return 'overdue'; // 🔴 เลยกำหนดแล้ว (ใช้เกิน)
@@ -55,5 +54,34 @@ class Equipment extends Model
         }
 
         return 'ok'; // 🟢 ปกติ
+    }
+
+    public function getCurrentMeterValue(): float
+    {
+        return $this->tracking_type === 'kilometers'
+            ? (float) ($this->current_kilometers ?? 0)
+            : (float) ($this->current_hours ?? 0);
+    }
+
+    public function getThresholdMeterValue(): float
+    {
+        return $this->tracking_type === 'kilometers'
+            ? (float) ($this->maintenance_km_threshold ?? 0)
+            : (float) ($this->maintenance_hour_threshold ?? 0);
+    }
+
+    public function getMeterUnit(): string
+    {
+        return $this->tracking_type === 'kilometers' ? 'กม.' : 'ชม.';
+    }
+
+    public function resetOperationalMeter(): void
+    {
+        if ($this->tracking_type === 'kilometers') {
+            $this->current_kilometers = 0;
+            return;
+        }
+
+        $this->current_hours = 0;
     }
 }

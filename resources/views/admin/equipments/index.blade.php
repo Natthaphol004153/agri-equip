@@ -123,6 +123,25 @@
                             {{-- จัดการ (แสดงตลอดเวลา ไม่ Hidden แล้ว) --}}
                             <td class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
+                                    @if($eq->current_status !== 'maintenance')
+                                        <form action="{{ route('admin.maintenance.start', $eq->id) }}" method="POST"
+                                            onsubmit="return confirm('ส่ง {{ $eq->name }} เข้าซ่อมทันทีใช่ไหม?');">
+                                            @csrf
+                                            <input type="hidden" name="description" value="ส่งเข้าซ่อมจากหน้าคลังเครื่องจักร (Quick Action)">
+                                            <button type="submit"
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg border border-yellow-200 text-yellow-700 hover:text-yellow-800 hover:border-yellow-400 hover:bg-yellow-50 transition"
+                                                title="ส่งเข้าซ่อมทันที">
+                                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span
+                                            class="w-8 h-8 inline-flex items-center justify-center rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-500"
+                                            title="กำลังซ่อมอยู่แล้ว">
+                                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                                        </span>
+                                    @endif
+
                                     <a href="{{ route('admin.equipments.show', $eq->id) }}" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-600 hover:bg-blue-50 transition" title="รายละเอียด">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>

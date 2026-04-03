@@ -45,10 +45,17 @@ class StaffController extends Controller
             return response()->json(['error' => 'งานนี้ไม่ได้มอบหมายให้คุณ'], 403);
         }
 
+        $equipment = $booking->equipment;
+        $trackingType = $equipment->tracking_type ?? 'hours';
+        $meterBeforeStart = $trackingType === 'kilometers'
+            ? (float) ($equipment->current_kilometers ?? 0)
+            : (float) ($equipment->current_hours ?? 0);
+
         // 1. อัปเดตสถานะงาน -> IN_PROGRESS
         $booking->update([
             'status' => BookingStatus::IN_PROGRESS,
-            'actual_start' => Carbon::now()
+            'actual_start' => Carbon::now(),
+            'meter_before_start' => $meterBeforeStart,
         ]);
 
         // 2. อัปเดตสถานะรถ -> IN_USE (กำลังใช้งาน)
@@ -106,12 +113,21 @@ class StaffController extends Controller
             'meter_reading' => $meterReading
         ]);
 
-        // 3. คืนรถ -> AVAILABLE (พร้อมรับงานต่อทันที)
+        // 3. อัปเดตมิเตอร์เครื่องจากเลขปิดงาน (กันข้อมูลมิเตอร์ไม่ sync)
+        if ($booking->equipment) {
+            if (($booking->equipment->tracking_type ?? 'hours') === 'kilometers') {
+                $booking->equipment()->update(['current_kilometers' => $meterReading]);
+            } else {
+                $booking->equipment()->update(['current_hours' => $meterReading]);
+            }
+        }
+
+        // 4. คืนรถ -> AVAILABLE (พร้อมรับงานต่อทันที)
         if ($booking->equipment) {
             $booking->equipment()->update(['current_status' => EquipmentStatus::AVAILABLE]);
         }
 
-        // 4. บันทึก Log พร้อม Path รูปภาพ
+        // 5. บันทึก Log พร้อม Path รูปภาพ
         TaskActivity::create([
             'booking_id' => $id,
             'user_id' => $request->user_id,

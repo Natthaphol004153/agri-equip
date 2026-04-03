@@ -23,6 +23,7 @@ class MaintenanceLog extends Model
         'total_cost',
         'service_provider',
         'reset_counter',
+        'service_meter_reading',
         'image_url', // 👈 อันนี้รูปตอนแจ้งเสีย
         'receipt_image',
         'maintenance_date',
@@ -34,6 +35,7 @@ class MaintenanceLog extends Model
         'maintenance_date' => 'datetime',
         'completion_date' => 'datetime',
         'reset_counter' => 'boolean',
+        'service_meter_reading' => 'decimal:2',
     ];
 
     // ความสัมพันธ์: การซ่อมนี้เป็นของรถคันไหน

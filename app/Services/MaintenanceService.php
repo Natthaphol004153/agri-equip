@@ -42,16 +42,14 @@ class MaintenanceService
                 'total_cost' => $data['total_cost'],
                 'service_provider' => $data['service_provider'] ?? null,
                 'completion_date' => Carbon::now(),
-                'reset_counter' => $data['reset_counter'] ?? false
+                'reset_counter' => $data['reset_counter'] ?? false,
+                'service_meter_reading' => !empty($data['reset_counter']) ? $log->equipment->getCurrentMeterValue() : null,
             ]);
 
             // ดึงรถที่เกี่ยวข้อง
             $equipment = $log->equipment;
 
-            // ถ้าระบุให้รีเซ็ตชั่วโมงทำงาน (เช่น เปลี่ยนเครื่องใหม่/เช็คระยะใหญ่)
-            if ($log->reset_counter) {
-                $equipment->current_hours = 0;
-            }
+            // reset_counter เก็บไว้เป็นประวัติการซ่อมใหญ่เท่านั้น (ไม่ล้างเลขมิเตอร์จริง)
 
             // สำคัญที่สุด: ปลดล็อกรถกลับมาว่าง
             $equipment->current_status = EquipmentStatus::AVAILABLE;

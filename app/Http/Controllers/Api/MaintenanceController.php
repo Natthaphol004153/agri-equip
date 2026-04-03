@@ -52,24 +52,25 @@ class MaintenanceController extends Controller
         $request->validate([
             'total_cost' => 'required|numeric',
             'service_provider' => 'nullable|string', // ใครเป็นคนซ่อม (อู่ไหน/ช่างคนไหน)
-            'reset_counter' => 'boolean' // จะรีเซ็ตชั่วโมงใช้งานไหม (เช่น เปลี่ยนถ่ายน้ำมันเครื่องแล้ว)
+            'reset_counter' => 'boolean',
+            'major_service' => 'boolean',
         ]);
 
-        // 1. อัปเดตข้อมูลการซ่อม
+        $isMajorService = $request->boolean('major_service') || $request->boolean('reset_counter');
+
+        // 1. ดึงข้อมูลเครื่องจักร
+        $equipment = Equipment::findOrFail($log->equipment_id);
+
+        // 2. อัปเดตข้อมูลการซ่อม
         $log->update([
             'total_cost' => $request->total_cost,
             'service_provider' => $request->service_provider ?? null,
             'completion_date' => now(),
-            'reset_counter' => $request->reset_counter ? 1 : 0
+            'reset_counter' => $isMajorService ? 1 : 0,
+            'service_meter_reading' => $isMajorService ? ($equipment->getCurrentMeterValue()) : null,
         ]);
 
-        // 2. ดึงข้อมูลเครื่องจักร
-        $equipment = Equipment::find($log->equipment_id);
-
-        // 3. ถ้ามีการ Reset ชั่วโมง (เช่น เปลี่ยนถ่ายน้ำมันเครื่อง)
-        if ($request->reset_counter) {
-            $equipment->current_hours = 0;
-        }
+        // 3. reset_counter ใช้บันทึกประวัติการซ่อมใหญ่เท่านั้น (ไม่ล้างเลขมิเตอร์จริง)
 
         // 4. เปลี่ยนสถานะกลับเป็น "ว่าง" (พร้อมรับงานใหม่)
         $equipment->current_status = 'available';

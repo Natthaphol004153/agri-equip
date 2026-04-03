@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\DashboardController; // Admin Dashboard
 use App\Http\Controllers\Web\JobController;
@@ -34,8 +36,140 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+// Health check endpoint for monitoring systems
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+    ]);
+})->name('health');
+
+Route::get('/health/deep', function () {
+    $checks = [
+        'db' => ['ok' => false, 'message' => 'not_checked'],
+        'queue' => ['ok' => false, 'message' => 'not_checked'],
+        'disk' => ['ok' => false, 'message' => 'not_checked'],
+        'failed_jobs' => ['ok' => false, 'message' => 'not_checked'],
+        'backup' => ['ok' => false, 'message' => 'not_checked'],
+    ];
+
+    try {
+        DB::select('SELECT 1');
+        $checks['db'] = ['ok' => true, 'message' => 'connected'];
+    } catch (\Throwable $e) {
+        $checks['db'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    try {
+        $queueConnection = config('queue.default');
+        if ($queueConnection === 'database') {
+            $hasJobsTable = Schema::hasTable('jobs');
+            $checks['queue'] = [
+                'ok' => $hasJobsTable,
+                'message' => $hasJobsTable ? 'database_queue_ready' : 'jobs_table_missing',
+            ];
+        } else {
+            $checks['queue'] = [
+                'ok' => !empty($queueConnection),
+                'message' => $queueConnection ? "queue_connection_{$queueConnection}" : 'queue_connection_missing',
+            ];
+        }
+    } catch (\Throwable $e) {
+        $checks['queue'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    try {
+        $backupPath = '/var/backups/project2';
+        $rootFree = @disk_free_space('/');
+        $backupFree = @disk_free_space($backupPath);
+
+        $rootFreeMb = is_numeric($rootFree) ? round($rootFree / 1024 / 1024, 2) : null;
+        $backupFreeMb = is_numeric($backupFree) ? round($backupFree / 1024 / 1024, 2) : null;
+        $minFreeMb = 1024; // 1 GB
+        $targetFreeMb = $backupFreeMb ?? $rootFreeMb;
+
+        $checks['disk'] = [
+            'ok' => is_numeric($targetFreeMb) && $targetFreeMb >= $minFreeMb,
+            'message' => is_numeric($targetFreeMb) ? 'disk_space_checked' : 'disk_space_unavailable',
+            'root_free_mb' => $rootFreeMb,
+            'backup_free_mb' => $backupFreeMb,
+            'min_required_mb' => $minFreeMb,
+        ];
+    } catch (\Throwable $e) {
+        $checks['disk'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    try {
+        $hasFailedJobsTable = Schema::hasTable('failed_jobs');
+        if ($hasFailedJobsTable) {
+            $failedCount = DB::table('failed_jobs')->count();
+            $checks['failed_jobs'] = [
+                'ok' => $failedCount === 0,
+                'message' => $failedCount === 0 ? 'no_failed_jobs' : 'failed_jobs_pending',
+                'count' => $failedCount,
+            ];
+        } else {
+            $checks['failed_jobs'] = [
+                'ok' => true,
+                'message' => 'failed_jobs_table_missing',
+                'count' => null,
+            ];
+        }
+    } catch (\Throwable $e) {
+        $checks['failed_jobs'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    try {
+        $backupDir = '/var/backups/project2';
+        $maxAgeHours = 36;
+
+        $latestBackup = null;
+        if (is_dir($backupDir)) {
+            $files = glob($backupDir . '/*.sql.gz') ?: [];
+            if (!empty($files)) {
+                usort($files, function ($a, $b) {
+                    return filemtime($b) <=> filemtime($a);
+                });
+                $latestBackup = $files[0];
+            }
+        }
+
+        if (!$latestBackup) {
+            $checks['backup'] = [
+                'ok' => false,
+                'message' => 'backup_file_missing',
+                'max_age_hours' => $maxAgeHours,
+            ];
+        } else {
+            $ageHours = round((time() - filemtime($latestBackup)) / 3600, 2);
+            $checks['backup'] = [
+                'ok' => $ageHours <= $maxAgeHours,
+                'message' => $ageHours <= $maxAgeHours ? 'backup_recent' : 'backup_too_old',
+                'latest_file' => basename($latestBackup),
+                'age_hours' => $ageHours,
+                'max_age_hours' => $maxAgeHours,
+            ];
+        }
+    } catch (\Throwable $e) {
+        $checks['backup'] = ['ok' => false, 'message' => $e->getMessage()];
+    }
+
+    $allOk = collect($checks)->every(fn ($check) => $check['ok'] === true);
+
+    return response()->json([
+        'status' => $allOk ? 'ok' : 'degraded',
+        'timestamp' => now()->toIso8601String(),
+        'checks' => $checks,
+    ], $allOk ? 200 : 503);
+})->name('health.deep');
+
 // API สำหรับดึงข้อมูลปฏิทิน (ใช้โดย FullCalendar)
 Route::get('/api/public-calendar', [PublicController::class, 'getCalendarEvents'])->name('public.calendar');
+
+// หน้าใบเสร็จและหลักฐานจบงานแบบ public ผ่าน signed URL
+Route::get('/public/jobs/{id}/receipt', [JobController::class, 'publicReceipt'])
+    ->middleware('signed')
+    ->name('public.jobs.receipt');
 
 
 /*
@@ -106,6 +240,7 @@ Route::middleware(['auth'])->group(function () {
         // --- Dashboard & Menus ---
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/dashboard/financial-data', [DashboardController::class, 'getFinancialData'])->name('dashboard.financial');
+        Route::get('/dashboard/operational-stats', [DashboardController::class, 'getOperationalStats'])->name('dashboard.operational');
         Route::get('/menus', function () {
             return view('admin.menus');
         })->name('all-menus');
@@ -157,9 +292,7 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // --- Reports & Exports ---
-        Route::get('/reports', function () {
-            return view('admin.reports.index');
-        })->name('reports.index');
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/equipment-profit', [ReportController::class, 'equipmentProfit'])
             ->name('reports.equipment_profit');
 
